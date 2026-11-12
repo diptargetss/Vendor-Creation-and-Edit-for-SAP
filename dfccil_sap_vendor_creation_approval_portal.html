@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DFCCIL — SAP Vendor Onboarding Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              900: '#0F294A',
+              800: '#163B69',
+              700: '#1E4E8C',
+              50: '#F4F7FB',
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .field-input {
+      width: 100%;
+      border-radius: 0.625rem;
+      border: 1px solid #cbd5e1;
+      background-color: #ffffff;
+      padding: 0.65rem 0.875rem;
+      font-size: 0.875rem;
+      color: #0f172a;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    }
+    .field-input:focus {
+      outline: none;
+      border-color: #0f294a;
+      box-shadow: 0 0 0 3px rgba(15, 41, 74, 0.08);
+    }
+    .field-input:disabled,
+    .field-input[readonly] {
+      background-color: #f1f5f9;
+      color: #64748b;
+      cursor: not-allowed;
+    }
+    .field-error {
+      border-color: #dc2626 !important;
+      background-color: #fef2f2 !important;
+    }
+    .field-error:focus {
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+    }
+    /* Subtle helper hints only revealed on focus or when invalid */
+    .focus-hint {
+      display: none;
+      margin-top: 0.35rem;
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+    .field-group:focus-within .focus-hint {
+      display: block;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-brand-900 selection:text-white">
+
+  <!-- Minimalistic Top Header -->
+  <header class="bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-40">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-8 h-8 rounded-lg bg-brand-900 text-white flex items-center justify-center font-semibold text-xs tracking-wider shrink-0">
+          DFC
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2.5">
+            <h1 class="text-sm sm:text-base font-semibold text-slate-900 truncate">DFCCIL SAP Vendor Onboarding</h1>
+            <span id="header-status-pill" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+              Draft
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Controls: Segmented Role Switcher + Subtle Utility Links -->
+      <div class="flex items-center gap-3 sm:gap-4 shrink-0">
+        <button type="button" onclick="loadSampleValidData()" class="hidden sm:inline-block text-xs font-medium text-slate-500 hover:text-brand-900 transition">
+          Fill Sample Data
+        </button>
+        <button type="button" onclick="resetEntireForm()" class="hidden sm:inline-block text-xs font-medium text-slate-400 hover:text-slate-700 transition">
+          Reset
+        </button>
+
+        <!-- Segmented Role Switcher -->
+        <div class="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200/70" role="tablist">
+          <button type="button" id="role-btn-initiator" onclick="switchStage('INITIATOR')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition">
+            Initiator
+          </button>
+          <button type="button" id="role-btn-techhead" onclick="switchStage('TECH_HEAD')"
+            class="px-3 py-1.5 rounded-lg text-xs font-medium transition">
+            Technical Head
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- Main Airy Canvas -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 sm:py-10">
+
+    <!-- Mobile Utility Bar -->
+    <div class="flex sm:hidden items-center justify-between mb-6 text-xs">
+      <span class="font-mono text-slate-400">REQ: VND-2026-0841</span>
+      <div class="flex items-center gap-3">
+        <button type="button" onclick="loadSampleValidData()" class="font-medium text-brand-900">Fill Sample Data</button>
+        <button type="button" onclick="resetEntireForm()" class="text-slate-400">Reset</button>
+      </div>
+    </div>
+
+    <!-- Returned Feedback Notice (Minimalist callout shown only when returned by Technical Head) -->
+    <div id="initiator-feedback-banner" class="hidden mb-8 rounded-2xl bg-amber-50/80 border border-amber-200/80 p-5 text-sm text-amber-950"></div>
+
+    <!-- Global Validation Error Summary (Shown only if submission check catches errors) -->
+    <div id="validation-summary-box" class="hidden mb-8 rounded-2xl bg-red-50/90 border border-red-200 p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-semibold text-red-900">Please resolve the following before submitting to Technical Head:</h3>
+          <ul id="validation-error-list" class="mt-2.5 space-y-1 text-xs text-red-700 list-disc list-inside"></ul>
+        </div>
+        <button type="button" onclick="document.getElementById('validation-summary-box').classList.add('hidden')" class="text-xs font-medium text-red-500 hover:text-red-800">
+          Close
+        </button>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- STAGE 1: INITIATOR 4-STEP PROGRESSIVE WIZARD                          -->
+    <!-- ===================================================================== -->
+    <div id="stage-initiator-view" class="space-y-8">
+
+      <!-- Clean Horizontal Wizard Stepper -->
+      <nav aria-label="Wizard Progress" class="bg-white rounded-2xl border border-slate-200/90 p-4 sm:px-8 sm:py-5">
+        <ol class="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4" id="wizard-stepper-nav">
+          <!-- Rendered dynamically via JS -->
+        </ol>
+      </nav>
+
+      <!-- Wizard Form Card -->
+      <form id="vendor-wizard-form" novalidate class="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+
+        <!-- =============================================================== -->
+        <!-- WIZARD STEP 1: ENTITY & ADDRESS                                 -->
+        <!-- =============================================================== -->
+        <div id="wizard-step-1" class="p-6 sm:p-8 space-y-8">
+          <div class="border-b border-slate-100 pb-5">
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Step 1 of 4</p>
+            <h2 class="text-xl font-semibold text-slate-900 mt-1">Entity &amp; Address Details</h2>
+            <p class="text-sm text-slate-500 mt-1">SAP organizational assignment and registered legal address.</p>
+          </div>
+
+          <!-- Group A: SAP Organizational Data -->
+          <div class="space-y-5">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">SAP Organizational Master</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label for="companyCode" class="block text-xs font-medium text-slate-700 mb-2">Company Code</label>
+                <input type="text" id="companyCode" name="companyCode" value="DFCCIL- 1000" readonly
+                  class="field-input font-mono text-slate-600" />
+              </div>
+
+              <div class="field-group">
+                <label for="accountGroup" class="block text-xs font-medium text-slate-700 mb-2">
+                  Account Group <span class="text-red-500">*</span>
+                </label>
+                <select id="accountGroup" name="accountGroup" onchange="handleAccountGroupChange()" class="field-input">
+                  <option value="">Select Account Group</option>
+                  <option value="Z001">Z001 — Consultants (GL: 25000040)</option>
+                  <option value="Z002">Z002 — Project Contractor (GL: 25000050)</option>
+                  <option value="Z004">Z004 — General Vendor (GL: 25000010)</option>
+                  <option value="Z005">Z005 — Foreign Vendor (GL: 25000020)</option>
+                  <option value="Z007">Z007 — One-time vend.(int.no.assgnmt) (GL: 25000080)</option>
+                  <option value="Z008">Z008 — Employee Vendor (GL: 25000030)</option>
+                  <option value="Z010">Z010 — FI Vendors (GL: 25000060)</option>
+                  <option value="Z013">Z013 — Lease Vendor (GL: 25000070)</option>
+                  <option value="Z014">Z014 — SLAO Vendor (GL: 25000090)</option>
+                </select>
+                <p id="err-accountGroup" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">Automatically assigns the Reconciliation GL account in Step 3.</p>
+              </div>
+
+              <div>
+                <label for="purchaseOrg" class="block text-xs font-medium text-slate-700 mb-2">
+                  Purchase Organisation <span class="text-red-500">*</span>
+                </label>
+                <select id="purchaseOrg" name="purchaseOrg" onchange="clearFieldError('purchaseOrg')" class="field-input">
+                  <option value="">Select Purchase Org</option>
+                  <option value="2000">2000 — DFCCIL Projects</option>
+                  <option value="3000">3000 — DFCCIL Others</option>
+                  <option value="4000">4000 — DFC Supply Contract</option>
+                </select>
+                <p id="err-purchaseOrg" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group B: Legal Identity -->
+          <div class="space-y-5 pt-6 border-t border-slate-100">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vendor Legal Identity</h3>
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <div class="md:col-span-3">
+                <label for="title" class="block text-xs font-medium text-slate-700 mb-2">
+                  Title <span class="text-red-500">*</span>
+                </label>
+                <select id="title" name="title" onchange="handleTitleChange()" class="field-input">
+                  <option value="">Select Title</option>
+                  <option value="0001">0001 — Mr.</option>
+                  <option value="0002">0002 — Mrs.</option>
+                  <option value="0003">0003 — Company</option>
+                  <option value="0004">0004 — Ms.</option>
+                </select>
+                <p id="err-title" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div class="md:col-span-4 field-group">
+                <label for="cinLlpin" class="block text-xs font-medium text-slate-700 mb-2">
+                  CIN / LLPIN <span id="cin-req-star" class="text-red-500 hidden">*</span>
+                </label>
+                <input type="text" id="cinLlpin" name="cinLlpin" maxlength="21" placeholder="e.g. U45200DL2006GOI155068"
+                  oninput="this.value = this.value.toUpperCase(); clearFieldError('cinLlpin');"
+                  class="field-input font-mono uppercase" />
+                <p id="err-cinLlpin" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">Mandatory when Title is 0003 — Company (21-char CIN or 8-char LLPIN).</p>
+              </div>
+
+              <div class="md:col-span-5 field-group">
+                <label for="vendorName" class="block text-xs font-medium text-slate-700 mb-2">
+                  Vendor Legal Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="vendorName" name="vendorName" maxlength="70" placeholder="Exact legal name as per PAN / GST"
+                  oninput="syncSearchTermsFromVendorName(); clearFieldError('vendorName');"
+                  class="field-input" />
+                <p id="err-vendorName" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">Must match PAN card and GST registration records.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <label for="searchTerm1" class="block text-xs font-medium text-slate-700">
+                    Search Term 1 <span class="text-red-500">*</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer hover:text-slate-600">
+                    <input type="checkbox" id="autoSyncSearch" checked onchange="syncSearchTermsFromVendorName()" class="rounded border-slate-300 text-brand-900 focus:ring-0" />
+                    <span>Auto-fill from name</span>
+                  </label>
+                </div>
+                <input type="text" id="searchTerm1" name="searchTerm1" maxlength="20" placeholder="Primary SAP search key (max 20 chars)"
+                  oninput="this.value = this.value.toUpperCase(); clearFieldError('searchTerm1');"
+                  class="field-input font-mono uppercase" />
+                <p id="err-searchTerm1" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="searchTerm2" class="block text-xs font-medium text-slate-700 mb-2">
+                  Search Term 2 <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="searchTerm2" name="searchTerm2" maxlength="20" placeholder="Short alias / trade key (max 20 chars)"
+                  oninput="this.value = this.value.toUpperCase(); clearFieldError('searchTerm2');"
+                  class="field-input font-mono uppercase" />
+                <p id="err-searchTerm2" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Group C: Registered Address & Contact -->
+          <div class="space-y-5 pt-6 border-t border-slate-100">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Address &amp; Communication</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="houseNo" class="block text-xs font-medium text-slate-700 mb-2">
+                  House No. / Building / Plot <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="houseNo" name="houseNo" maxlength="40" placeholder="Building / Plot / Floor"
+                  oninput="clearFieldError('houseNo')" class="field-input" />
+                <p id="err-houseNo" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="street" class="block text-xs font-medium text-slate-700 mb-2">
+                  Street / Locality <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="street" name="street" maxlength="60" placeholder="Street / Sector / Area"
+                  oninput="clearFieldError('street')" class="field-input" />
+                <p id="err-street" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div class="field-group">
+                <label for="postalCode" class="block text-xs font-medium text-slate-700 mb-2">
+                  Postal Code (PIN) <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="postalCode" name="postalCode" maxlength="10" placeholder="e.g. 110001"
+                  oninput="handlePostalCodeInput()" class="field-input font-mono" />
+                <p id="err-postalCode" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">6-digit Indian PIN auto-populates City &amp; State.</p>
+              </div>
+
+              <div>
+                <label for="city" class="block text-xs font-medium text-slate-700 mb-2">
+                  City <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="city" name="city" placeholder="City"
+                  oninput="clearFieldError('city')" class="field-input" />
+                <p id="err-city" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="region" class="block text-xs font-medium text-slate-700 mb-2">
+                  Region (State) <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="region" name="region" placeholder="State / Region"
+                  oninput="clearFieldError('region')" class="field-input" />
+                <p id="err-region" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="country" class="block text-xs font-medium text-slate-700 mb-2">
+                  Country <span class="text-red-500">*</span>
+                </label>
+                <select id="country" name="country" onchange="handleCountryChange()" class="field-input">
+                  <option value="IN" selected>India (IN)</option>
+                  <option value="JP">Japan (JP)</option>
+                  <option value="US">United States (US)</option>
+                  <option value="DE">Germany (DE)</option>
+                  <option value="GB">United Kingdom (GB)</option>
+                  <option value="SG">Singapore (SG)</option>
+                  <option value="FR">France (FR)</option>
+                </select>
+                <p id="err-country" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label for="emailId" class="block text-xs font-medium text-slate-700 mb-2">
+                  Email ID <span class="text-red-500">*</span>
+                </label>
+                <input type="email" id="emailId" name="emailId" placeholder="accounts@vendor.com"
+                  oninput="clearFieldError('emailId')" class="field-input" />
+                <p id="err-emailId" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="contactNumber" class="block text-xs font-medium text-slate-700 mb-2">
+                  Contact Number <span class="text-red-500">*</span>
+                </label>
+                <div class="flex">
+                  <span id="phone-prefix" class="inline-flex items-center px-3.5 rounded-l-[0.625rem] border border-r-0 border-slate-300 bg-slate-50 text-slate-500 text-xs font-mono">+91</span>
+                  <input type="tel" id="contactNumber" name="contactNumber" maxlength="10" placeholder="10-digit mobile / phone"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, ''); clearFieldError('contactNumber');"
+                    class="field-input rounded-l-none font-mono" />
+                </div>
+                <p id="err-contactNumber" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 1 Footer Navigation -->
+          <div class="pt-6 border-t border-slate-100 flex items-center justify-end">
+            <button type="button" onclick="goToWizardStep(2, true)"
+              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium bg-brand-900 hover:bg-brand-800 text-white transition">
+              <span>Continue to Tax &amp; Compliance</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- WIZARD STEP 2: TAX & COMPLIANCE                                 -->
+        <!-- =============================================================== -->
+        <div id="wizard-step-2" class="hidden p-6 sm:p-8 space-y-8">
+          <div class="border-b border-slate-100 pb-5">
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Step 2 of 4</p>
+            <h2 class="text-xl font-semibold text-slate-900 mt-1">Tax &amp; Compliance Registration</h2>
+            <p class="text-sm text-slate-500 mt-1">PAN, GST categorization, MSME Udyam status, and statutory classification.</p>
+          </div>
+
+          <!-- PAN & GST -->
+          <div class="space-y-5">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">PAN &amp; GST Registration</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="field-group">
+                <div class="flex items-center justify-between mb-2">
+                  <label for="panNumber" class="block text-xs font-medium text-slate-700">
+                    PAN Number <span id="pan-req-star" class="text-red-500">*</span>
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer hover:text-slate-800">
+                    <input type="checkbox" id="panNotAvailable" onchange="handlePanNotAvailableToggle()" class="rounded border-slate-300 text-brand-900 focus:ring-0" />
+                    <span>PAN Not Available</span>
+                  </label>
+                </div>
+                <input type="text" id="panNumber" name="panNumber" maxlength="10" placeholder="ABCDE1234F"
+                  oninput="this.value = this.value.toUpperCase(); handlePanInput();"
+                  class="field-input font-mono uppercase" />
+                <p id="err-panNumber" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p id="pan-hint" class="focus-hint">10-character PAN (4th character 'C' for Company, 'P' for Individual).</p>
+              </div>
+
+              <div>
+                <label for="gstCategory" class="block text-xs font-medium text-slate-700 mb-2">
+                  GST Vendor Category <span class="text-red-500">*</span>
+                </label>
+                <select id="gstCategory" name="gstCategory" onchange="handleGstCategoryChange()" class="field-input">
+                  <option value="">Select GST Category</option>
+                  <option value="1">1 — Registered</option>
+                  <option value="2">2 — Not Registered</option>
+                  <option value="3">3 — Composition Scheme</option>
+                  <option value="5">5 — Government Department</option>
+                  <option value="6">6 — TDS Deductor</option>
+                  <option value="7">7 — Input Service Distributor</option>
+                  <option value="8">8 — SEZ Developer</option>
+                  <option value="9">9 — SEZ Unit</option>
+                </select>
+                <p id="err-gstCategory" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div class="field-group">
+                <label for="gstin" class="block text-xs font-medium text-slate-700 mb-2">
+                  GSTIN <span id="gst-req-star" class="text-red-500 hidden">*</span>
+                </label>
+                <input type="text" id="gstin" name="gstin" maxlength="15" placeholder="07ABCDE1234F1Z5"
+                  oninput="this.value = this.value.toUpperCase(); handleGstinInput();"
+                  class="field-input font-mono uppercase" />
+                <p id="err-gstin" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">15-character GSTIN; characters 3–12 must match PAN.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- MSME & Industry -->
+          <div class="space-y-5 pt-6 border-t border-slate-100">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Industry &amp; MSME Classification</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <label for="industry" class="block text-xs font-medium text-slate-700 mb-2">
+                  Industry <span class="text-red-500">*</span>
+                </label>
+                <select id="industry" name="industry" onchange="clearFieldError('industry')" class="field-input">
+                  <option value="">Select Industry</option>
+                  <option value="1">1 — Manufacturing</option>
+                  <option value="2">2 — Service</option>
+                  <option value="3">3 — Trading</option>
+                </select>
+                <p id="err-industry" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="msmeApplicable" class="block text-xs font-medium text-slate-700 mb-2">
+                  MSME Registered? <span class="text-red-500">*</span>
+                </label>
+                <select id="msmeApplicable" name="msmeApplicable" onchange="handleMsmeToggle()" class="field-input">
+                  <option value="No" selected>No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
+
+              <div class="field-group">
+                <label for="udyamNumber" class="block text-xs font-medium text-slate-700 mb-2">
+                  Udyam Registration No. <span id="udyam-req-star" class="text-red-500 hidden">*</span>
+                </label>
+                <input type="text" id="udyamNumber" name="udyamNumber" maxlength="19" disabled placeholder="UDYAM-DL-01-0012345"
+                  oninput="this.value = this.value.toUpperCase(); clearFieldError('udyamNumber');"
+                  class="field-input font-mono uppercase" />
+                <p id="err-udyamNumber" class="hidden mt-1.5 text-xs text-red-600"></p>
+                <p class="focus-hint">Format: UDYAM-XX-00-0000000</p>
+              </div>
+
+              <div>
+                <label for="msmeStatus" class="block text-xs font-medium text-slate-700 mb-2">
+                  MSME Status <span id="msme-status-star" class="text-red-500 hidden">*</span>
+                </label>
+                <select id="msmeStatus" name="msmeStatus" disabled onchange="clearFieldError('msmeStatus')" class="field-input">
+                  <option value="">N/A</option>
+                  <option value="1">1 — Micro</option>
+                  <option value="2">2 — Small</option>
+                  <option value="3">3 — Medium</option>
+                </select>
+                <p id="err-msmeStatus" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+              <div>
+                <label for="financialYear" class="block text-xs font-medium text-slate-700 mb-2">
+                  Financial Year <span class="text-red-500">*</span>
+                </label>
+                <select id="financialYear" name="financialYear" onchange="clearFieldError('financialYear')" class="field-input font-mono">
+                  <option value="2020-21">2020-21</option>
+                  <option value="2021-22">2021-22</option>
+                  <option value="2022-23">2022-23</option>
+                  <option value="2023-24">2023-24</option>
+                  <option value="2024-25">2024-25</option>
+                  <option value="2025-26">2025-26</option>
+                  <option value="2026-27" selected>2026-27</option>
+                </select>
+                <p id="err-financialYear" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="socialCategory" class="block text-xs font-medium text-slate-700 mb-2">
+                  Social Category <span class="text-red-500">*</span>
+                </label>
+                <select id="socialCategory" name="socialCategory" onchange="clearFieldError('socialCategory')" class="field-input">
+                  <option value="">Select Category</option>
+                  <option value="General">General</option>
+                  <option value="OBC">OBC</option>
+                  <option value="SC">SC</option>
+                  <option value="ST">ST</option>
+                </select>
+                <p id="err-socialCategory" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="gender" class="block text-xs font-medium text-slate-700 mb-2">
+                  Gender <span class="text-red-500">*</span>
+                </label>
+                <select id="gender" name="gender" onchange="clearFieldError('gender')" class="field-input">
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Company">Company</option>
+                </select>
+                <p id="err-gender" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 Footer Navigation -->
+          <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
+            <button type="button" onclick="goToWizardStep(1, false)"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Back</span>
+            </button>
+            <button type="button" onclick="goToWizardStep(3, true)"
+              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium bg-brand-900 hover:bg-brand-800 text-white transition">
+              <span>Continue to Banking &amp; WHT</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- WIZARD STEP 3: BANKING, ACCOUNTING & WITHHOLDING TAX            -->
+        <!-- =============================================================== -->
+        <div id="wizard-step-3" class="hidden p-6 sm:p-8 space-y-8">
+          <div class="border-b border-slate-100 pb-5">
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Step 3 of 4</p>
+            <h2 class="text-xl font-semibold text-slate-900 mt-1">Banking, Accounting &amp; Withholding Tax</h2>
+            <p class="text-sm text-slate-500 mt-1">Payment configuration, verified bank account details, and applicable TDS codes.</p>
+          </div>
+
+          <!-- Accounting Terms -->
+          <div class="space-y-5">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Accounting &amp; Payment Terms</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label for="paymentTerms" class="block text-xs font-medium text-slate-700 mb-2">
+                  Payment Terms <span class="text-red-500">*</span>
+                </label>
+                <select id="paymentTerms" name="paymentTerms" onchange="clearFieldError('paymentTerms')" class="field-input">
+                  <option value="">Select Payment Terms</option>
+                  <option value="Z000">Z000 — Immediate / Due Net</option>
+                  <option value="Z015">Z015 — Within 15 Days Due Net</option>
+                  <option value="Z030">Z030 — Within 30 Days Due Net</option>
+                  <option value="Z045">Z045 — Within 45 Days (MSME Statutory)</option>
+                  <option value="Z060">Z060 — Within 60 Days Due Net</option>
+                </select>
+                <p id="err-paymentTerms" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="paymentMethod" class="block text-xs font-medium text-slate-700 mb-2">
+                  Payment Method <span class="text-red-500">*</span>
+                </label>
+                <select id="paymentMethod" name="paymentMethod" onchange="clearFieldError('paymentMethod')" class="field-input">
+                  <option value="">Select Payment Method</option>
+                  <option value="N">N — Bank Transfer (NEFT)</option>
+                  <option value="T">T — Bank Transfer (RTGS)</option>
+                  <option value="IMPS">IMPS — Immediate Payment Service</option>
+                  <option value="S">S — Bank Transfer (ECS/Transfer)</option>
+                  <option value="O">O — Online Payment</option>
+                  <option value="C">C — Cheque</option>
+                  <option value="D">D — Draft</option>
+                  <option value="E">E — Cash Payment</option>
+                </select>
+                <p id="err-paymentMethod" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="reconciliationAccount" class="block text-xs font-medium text-slate-700 mb-2">
+                  Reconciliation Account (GL) <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="reconciliationAccount" name="reconciliationAccount" readonly placeholder="Auto-filled from Account Group"
+                  class="field-input font-mono font-medium text-brand-900" />
+                <p id="gl-desc-sub" class="mt-1 text-xs text-slate-400"></p>
+                <p id="err-reconciliationAccount" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bank Details -->
+          <div class="space-y-5 pt-6 border-t border-slate-100">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Bank Account Details</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <label for="bankKeyIfsc" class="block text-xs font-medium text-slate-700 mb-2">
+                  Bank Key (IFSC) <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="bankKeyIfsc" name="bankKeyIfsc" maxlength="11" placeholder="SBIN0000691"
+                  oninput="this.value = this.value.toUpperCase(); handleIfscInput();"
+                  class="field-input font-mono uppercase" />
+                <p id="ifsc-bank-sub" class="hidden mt-1 text-xs text-emerald-700"></p>
+                <p id="err-bankKeyIfsc" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="bankAccountNo" class="block text-xs font-medium text-slate-700 mb-2">
+                  Bank Account Number <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="bankAccountNo" name="bankAccountNo" maxlength="18" placeholder="9 to 18 digits"
+                  oninput="this.value = this.value.replace(/[^0-9]/g, ''); clearFieldError('bankAccountNo'); checkAccountMatch();"
+                  class="field-input font-mono" />
+                <p id="err-bankAccountNo" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="confirmBankAccountNo" class="block text-xs font-medium text-slate-700 mb-2">
+                  Confirm Account No. <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="confirmBankAccountNo" name="confirmBankAccountNo" maxlength="18" placeholder="Re-enter account no."
+                  oninput="this.value = this.value.replace(/[^0-9]/g, ''); clearFieldError('confirmBankAccountNo'); checkAccountMatch();"
+                  class="field-input font-mono" />
+                <p id="acc-match-ok" class="hidden mt-1 text-xs text-emerald-700">Account numbers match</p>
+                <p id="err-confirmBankAccountNo" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="accountHolderName" class="block text-xs font-medium text-slate-700 mb-2">
+                  Account Holder Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="accountHolderName" name="accountHolderName" maxlength="60" placeholder="As per Cheque / Passbook"
+                  oninput="checkBeneficiaryMismatch(); clearFieldError('accountHolderName');"
+                  class="field-input" />
+                <p id="beneficiary-warn" class="hidden mt-1 text-xs text-amber-700">Differs from Legal Name; verify mandate.</p>
+                <p id="err-accountHolderName" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Withholding Tax Table -->
+          <div class="space-y-4 pt-6 border-t border-slate-100">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Withholding Tax (TDS / TCS Master)</h3>
+              <button type="button" onclick="addTaxRow()"
+                class="inline-flex items-center gap-1.5 text-xs font-medium text-brand-900 hover:text-brand-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Add Tax Line</span>
+              </button>
+            </div>
+
+            <p id="err-withholdingTax" class="hidden text-xs text-red-600"></p>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200/90">
+              <table class="min-w-full divide-y divide-slate-200/80 text-xs">
+                <thead class="bg-slate-50/70 text-slate-500 font-medium">
+                  <tr>
+                    <th class="px-4 py-3 text-left w-10">#</th>
+                    <th class="px-4 py-3 text-left min-w-[260px]">Withholding Tax Description</th>
+                    <th class="px-4 py-3 text-left w-20">Type</th>
+                    <th class="px-4 py-3 text-left w-20">Code</th>
+                    <th class="px-4 py-3 text-left w-24">Key</th>
+                    <th class="px-4 py-3 text-right w-20">Rate</th>
+                    <th class="px-4 py-3 text-center w-16">Liable</th>
+                    <th class="px-4 py-3 text-center w-14"></th>
+                  </tr>
+                </thead>
+                <tbody id="wht-table-body" class="divide-y divide-slate-100 bg-white">
+                  <!-- Rendered dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Step 3 Footer Navigation -->
+          <div class="pt-6 border-t border-slate-100 flex items-center justify-between">
+            <button type="button" onclick="goToWizardStep(2, false)"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Back</span>
+            </button>
+            <button type="button" onclick="goToWizardStep(4, true)"
+              class="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium bg-brand-900 hover:bg-brand-800 text-white transition">
+              <span>Continue to Documents &amp; Requestor</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- =============================================================== -->
+        <!-- WIZARD STEP 4: DOCUMENTS & REQUESTOR                            -->
+        <!-- =============================================================== -->
+        <div id="wizard-step-4" class="hidden p-6 sm:p-8 space-y-8">
+          <div class="border-b border-slate-100 pb-5">
+            <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Step 4 of 4</p>
+            <h2 class="text-xl font-semibold text-slate-900 mt-1">Supporting Documents &amp; Requestor</h2>
+            <p class="text-sm text-slate-500 mt-1">Upload mandatory proofs (PDF, JPG, PNG up to 5 MB) and confirm requestor details.</p>
+          </div>
+
+          <!-- Document Upload Dropzones -->
+          <div class="space-y-5">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Supporting Attachments</h3>
+              <span class="text-xs text-slate-400">LoA/PO/Contract &amp; Bank Proof required</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="document-upload-grid">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Compact Auto-Synced Record Information Strip -->
+            <div class="rounded-xl bg-slate-50/80 border border-slate-200/70 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-xs" id="record-info-strip">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Requestor Details -->
+          <div class="space-y-5 pt-6 border-t border-slate-100">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">DFCCIL Requestor Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div>
+                <label for="initiatorName" class="block text-xs font-medium text-slate-700 mb-2">
+                  Employee Name <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="initiatorName" name="initiatorName" placeholder="Requesting officer name"
+                  oninput="clearFieldError('initiatorName')" class="field-input" />
+                <p id="err-initiatorName" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="initiatorEmpId" class="block text-xs font-medium text-slate-700 mb-2">
+                  Employee ID <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="initiatorEmpId" name="initiatorEmpId" maxlength="12" placeholder="SAP Personnel No."
+                  oninput="this.value = this.value.toUpperCase(); clearFieldError('initiatorEmpId');"
+                  class="field-input font-mono" />
+                <p id="err-initiatorEmpId" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+
+              <div>
+                <label for="initiatorDept" class="block text-xs font-medium text-slate-700 mb-2">
+                  Department <span class="text-red-500">*</span>
+                </label>
+                <select id="initiatorDept" name="initiatorDept" onchange="clearFieldError('initiatorDept')" class="field-input">
+                  <option value="">Select Department</option>
+                  <option value="Civil / Engineering">Civil / Engineering</option>
+                  <option value="Electrical / Traction">Electrical / Traction</option>
+                  <option value="Signal & Telecom (S&T)">Signal &amp; Telecom (S&T)</option>
+                  <option value="Operations & BD">Operations &amp; Business Development</option>
+                  <option value="Finance & Accounts">Finance &amp; Accounts</option>
+                  <option value="IT & ERP Systems">IT &amp; ERP Systems</option>
+                  <option value="HR & Administration">HR &amp; Administration</option>
+                  <option value="Procurement & Materials">Procurement &amp; Materials</option>
+                </select>
+                <p id="err-initiatorDept" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            </div>
+
+            <div>
+              <label for="creationPurpose" class="block text-xs font-medium text-slate-700 mb-2">
+                Purpose of Vendor Creation / LoA Reference <span class="text-red-500">*</span>
+              </label>
+              <textarea id="creationPurpose" name="creationPurpose" rows="2" placeholder="LoA / PO / Contract reference and scope of engagement..."
+                oninput="clearFieldError('creationPurpose')" class="field-input"></textarea>
+              <p id="err-creationPurpose" class="hidden mt-1.5 text-xs text-red-600"></p>
+            </div>
+          </div>
+
+          <!-- Step 4 Footer Navigation & Submit -->
+          <div class="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <button type="button" onclick="goToWizardStep(3, false)"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span>Back</span>
+            </button>
+
+            <button type="button" onclick="validateAndSubmitToTechHead()"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3 rounded-xl text-sm font-medium bg-brand-900 hover:bg-brand-800 text-white shadow-xs transition">
+              <span>Submit to Technical Head</span>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- STAGE 2: MINIMALISTIC TECHNICAL HEAD REVIEW & APPROVAL VIEW           -->
+    <!-- ===================================================================== -->
+    <div id="stage-techhead-view" class="hidden space-y-8">
+
+      <!-- Approved Confirmation Card -->
+      <div id="sap-approved-certificate" class="hidden bg-white rounded-2xl border border-emerald-200 p-6 sm:p-8 shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div class="space-y-1.5">
+            <span class="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              SAP Vendor Master Active
+            </span>
+            <h2 class="text-xl font-semibold text-slate-900" id="cert-vendor-name">—</h2>
+            <p class="text-xs text-slate-500">Company Code <span class="font-mono text-slate-700">DFCCIL- 1000</span> • Reconciliation GL <span class="font-mono text-slate-700" id="cert-gl-code"></span></p>
+          </div>
+          <div class="sm:text-right border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
+            <div class="text-xs text-slate-400">Generated SAP Vendor Code</div>
+            <div class="text-2xl sm:text-3xl font-mono font-semibold text-slate-900 tracking-tight mt-0.5" id="cert-sap-code">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State if Not Yet Submitted -->
+      <div id="techhead-empty-state" class="hidden bg-white rounded-2xl border border-slate-200/90 p-10 text-center space-y-4">
+        <div class="w-11 h-11 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div class="max-w-md mx-auto space-y-1">
+          <h3 class="text-base font-semibold text-slate-900">Awaiting Initiator Submission</h3>
+          <p class="text-sm text-slate-500">Complete the 4-step Initiator wizard and attach the mandatory LoA/PO/Contract and Bank Details proofs to review here.</p>
+        </div>
+        <div>
+          <button type="button" onclick="switchStage('INITIATOR')" class="px-5 py-2.5 rounded-xl text-sm font-medium bg-brand-900 text-white hover:bg-brand-800 transition">
+            Go to Initiator Form
+          </button>
+        </div>
+      </div>
+
+      <!-- Review Summary Dossier -->
+      <div id="techhead-dossier-container" class="space-y-6">
+
+        <!-- Main Summary Card -->
+        <div class="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-8">
+          <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-slate-100 pb-6">
+            <div>
+              <p class="text-xs text-slate-400" id="review-submitted-meta">Submitted for Approval</p>
+              <h2 class="text-xl font-semibold text-slate-900 mt-1" id="review-vendor-title">—</h2>
+              <p class="text-sm text-slate-500 mt-1" id="review-vendor-subtitle">—</p>
+            </div>
+            <button type="button" onclick="switchStage('INITIATOR')" class="text-xs font-medium text-slate-500 hover:text-brand-900 transition shrink-0">
+              ← Edit in Initiator View
+            </button>
+          </div>
+
+          <!-- Clean Scannable Key-Value Pairs -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="review-kv-grid">
+            <!-- Populated dynamically -->
+          </div>
+
+          <!-- Attached Documents Chips -->
+          <div class="pt-6 border-t border-slate-100 space-y-3">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Attached Proofs (Click to Preview)</h3>
+            <div class="flex flex-wrap gap-2.5" id="review-doc-chips">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Technical Head Verification & Decision Card -->
+        <div id="techhead-decision-card" class="bg-white rounded-2xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
+          <div>
+            <h3 class="text-base font-semibold text-slate-900">Technical Head Verification</h3>
+            <p class="text-xs text-slate-500 mt-0.5">Confirm verification of attached documents and SAP master parameters.</p>
+          </div>
+
+          <div class="space-y-3">
+            <label class="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
+              <input type="checkbox" id="th-chk-loa" class="mt-1 rounded border-slate-300 text-brand-900 focus:ring-0" />
+              <span>Verified <strong>Letter of Award / PO / Contract</strong> against vendor legal name and scope.</span>
+            </label>
+            <label class="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
+              <input type="checkbox" id="th-chk-bank" class="mt-1 rounded border-slate-300 text-brand-900 focus:ring-0" />
+              <span>Verified <strong>Bank Account Number, IFSC &amp; Beneficiary Name</strong> against uploaded Bank Proof.</span>
+            </label>
+            <label class="flex items-start gap-3 text-sm text-slate-700 cursor-pointer">
+              <input type="checkbox" id="th-chk-sap" class="mt-1 rounded border-slate-300 text-brand-900 focus:ring-0" />
+              <span>Confirmed <strong>Account Group, Reconciliation GL, PAN/GST &amp; Withholding Tax</strong> codes.</span>
+            </label>
+          </div>
+
+          <div>
+            <label for="techHeadRemarks" class="block text-xs font-medium text-slate-700 mb-2">
+              Remarks <span class="text-slate-400 font-normal">(Required if returning or rejecting)</span>
+            </label>
+            <textarea id="techHeadRemarks" rows="2" placeholder="Optional approval note or correction instructions..." class="field-input"></textarea>
+          </div>
+
+          <div class="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-end gap-3">
+            <button type="button" onclick="processTechHeadAction('REJECT')"
+              class="px-4 py-2.5 rounded-xl text-xs font-medium text-red-600 hover:bg-red-50 transition">
+              Reject
+            </button>
+            <button type="button" onclick="processTechHeadAction('RETURN')"
+              class="px-4 py-2.5 rounded-xl text-xs font-medium border border-slate-200 text-slate-700 hover:bg-slate-50 transition">
+              Return to Initiator
+            </button>
+            <button type="button" onclick="processTechHeadAction('APPROVE')"
+              class="px-6 py-2.5 rounded-xl text-sm font-medium bg-emerald-700 hover:bg-emerald-800 text-white transition">
+              Approve &amp; Generate SAP Code
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Minimal Document Preview Modal -->
+  <div id="doc-preview-modal" class="hidden fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full shadow-xl border border-slate-200 overflow-hidden flex flex-col max-h-[85vh]">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div>
+          <h3 id="modal-doc-title" class="text-sm font-semibold text-slate-900">Document Preview</h3>
+          <p id="modal-doc-meta" class="text-xs text-slate-400 font-mono mt-0.5"></p>
+        </div>
+        <button type="button" onclick="closeDocPreviewModal()" class="text-slate-400 hover:text-slate-700 text-sm p-1">✕</button>
+      </div>
+      <div id="modal-doc-body" class="p-6 overflow-y-auto flex-1 bg-slate-50 flex items-center justify-center min-h-[260px]">
+        <!-- Dynamic preview -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================================================================
+       1. MASTER LOOKUP TABLES (ACTIVE SAP VALUES ONLY — NO BLOCKED ENTRIES)
+       ========================================================================= */
+    const ACCOUNT_GROUP_MAP = {
+      'Z001': { label: 'Z001 — Consultants', gl: '25000040', glName: 'Sundry Creditors - Consultants' },
+      'Z002': { label: 'Z002 — Project Contractor', gl: '25000050', glName: 'Sundry Creditors - Project Contractors' },
+      'Z004': { label: 'Z004 — General Vendor', gl: '25000010', glName: 'Sundry Creditors - General' },
+      'Z005': { label: 'Z005 — Foreign Vendor', gl: '25000020', glName: 'Sundry Creditors - Foreign' },
+      'Z007': { label: 'Z007 — One-time vend.(int.no.assgnmt)', gl: '25000080', glName: 'One-Time Vendor Clearing' },
+      'Z008': { label: 'Z008 — Employee Vendor', gl: '25000030', glName: 'Employee Payables' },
+      'Z010': { label: 'Z010 — FI Vendors', gl: '25000060', glName: 'FI Direct Vendors' },
+      'Z013': { label: 'Z013 — Lease Vendor', gl: '25000070', glName: 'Lease Liability Payables' },
+      'Z014': { label: 'Z014 — SLAO Vendor', gl: '25000090', glName: 'Land Acquisition / SLAO Payables' }
+    };
+
+    const PURCHASE_ORG_LABELS = {
+      '2000': '2000 — DFCCIL Projects',
+      '3000': '3000 — DFCCIL Others',
+      '4000': '4000 — DFC Supply Contract'
+    };
+
+    const TITLE_LABELS = {
+      '0001': '0001 — Mr.',
+      '0002': '0002 — Mrs.',
+      '0003': '0003 — Company',
+      '0004': '0004 — Ms.'
+    };
+
+    const GST_CAT_LABELS = {
+      '1': '1 — Registered',
+      '2': '2 — Not Registered',
+      '3': '3 — Composition Scheme',
+      '5': '5 — Government Department',
+      '6': '6 — TDS Deductor',
+      '7': '7 — Input Service Distributor',
+      '8': '8 — SEZ Developer',
+      '9': '9 — SEZ Unit'
+    };
+
+    const INDUSTRY_LABELS = {
+      '1': '1 — Manufacturing',
+      '2': '2 — Service',
+      '3': '3 — Trading'
+    };
+
+    const MSME_STATUS_LABELS = {
+      '1': '1 — Micro',
+      '2': '2 — Small',
+      '3': '3 — Medium'
+    };
+
+    const PAYMENT_TERMS_LABELS = {
+      'Z000': 'Z000 — Immediate / Due Net',
+      'Z015': 'Z015 — Within 15 Days Due Net',
+      'Z030': 'Z030 — Within 30 Days Due Net',
+      'Z045': 'Z045 — Within 45 Days (MSME Statutory)',
+      'Z060': 'Z060 — Within 60 Days Due Net'
+    };
+
+    const PAYMENT_METHOD_LABELS = {
+      'C': 'C — Cheque',
+      'D': 'D — Draft',
+      'E': 'E — Cash Payment',
+      'N': 'N — Bank Transfer (NEFT)',
+      'O': 'O — Online Payment',
+      'IMPS': 'IMPS — Immediate Payment Service',
+      'S': 'S — Bank Transfer (ECS/Transfer)',
+      'T': 'T — Bank Transfer (RTGS)'
+    };
+
+    const EXACT_PIN_LOOKUP = {
+      '110001': { city: 'New Delhi', region: 'Delhi' },
+      '110002': { city: 'New Delhi', region: 'Delhi' },
+      '110020': { city: 'New Delhi', region: 'Delhi' },
+      '201001': { city: 'Ghaziabad', region: 'Uttar Pradesh' },
+      '201301': { city: 'Noida', region: 'Uttar Pradesh' },
+      '226001': { city: 'Lucknow', region: 'Uttar Pradesh' },
+      '208001': { city: 'Kanpur', region: 'Uttar Pradesh' },
+      '211001': { city: 'Prayagraj', region: 'Uttar Pradesh' },
+      '221001': { city: 'Varanasi', region: 'Uttar Pradesh' },
+      '400001': { city: 'Mumbai', region: 'Maharashtra' },
+      '411001': { city: 'Pune', region: 'Maharashtra' },
+      '440001': { city: 'Nagpur', region: 'Maharashtra' },
+      '560001': { city: 'Bengaluru', region: 'Karnataka' },
+      '700001': { city: 'Kolkata', region: 'West Bengal' },
+      '600001': { city: 'Chennai', region: 'Tamil Nadu' },
+      '302001': { city: 'Jaipur', region: 'Rajasthan' },
+      '380001': { city: 'Ahmedabad', region: 'Gujarat' },
+      '390001': { city: 'Vadodara', region: 'Gujarat' },
+      '395001': { city: 'Surat', region: 'Gujarat' },
+      '122001': { city: 'Gurugram', region: 'Haryana' },
+      '160017': { city: 'Chandigarh', region: 'Chandigarh' },
+      '500001': { city: 'Hyderabad', region: 'Telangana' },
+      '800001': { city: 'Patna', region: 'Bihar' }
+    };
+
+    const PIN_PREFIX_STATE = {
+      '11': 'Delhi',
+      '12': 'Haryana', '13': 'Haryana',
+      '14': 'Punjab', '15': 'Punjab', '16': 'Chandigarh',
+      '17': 'Himachal Pradesh',
+      '18': 'Jammu & Kashmir', '19': 'Jammu & Kashmir',
+      '20': 'Uttar Pradesh', '21': 'Uttar Pradesh', '22': 'Uttar Pradesh', '23': 'Uttar Pradesh',
+      '24': 'Uttarakhand', '25': 'Uttar Pradesh', '26': 'Uttarakhand', '27': 'Uttar Pradesh', '28': 'Uttar Pradesh',
+      '30': 'Rajasthan', '31': 'Rajasthan', '32': 'Rajasthan', '33': 'Rajasthan', '34': 'Rajasthan',
+      '36': 'Gujarat', '37': 'Gujarat', '38': 'Gujarat', '39': 'Gujarat',
+      '40': 'Maharashtra', '41': 'Maharashtra', '42': 'Maharashtra', '43': 'Maharashtra', '44': 'Maharashtra',
+      '45': 'Madhya Pradesh', '46': 'Madhya Pradesh', '47': 'Madhya Pradesh', '48': 'Madhya Pradesh',
+      '49': 'Chhattisgarh',
+      '50': 'Telangana', '51': 'Andhra Pradesh', '52': 'Andhra Pradesh', '53': 'Andhra Pradesh',
+      '56': 'Karnataka', '57': 'Karnataka', '58': 'Karnataka', '59': 'Karnataka',
+      '60': 'Tamil Nadu', '61': 'Tamil Nadu', '62': 'Tamil Nadu', '63': 'Tamil Nadu', '64': 'Tamil Nadu',
+      '67': 'Kerala', '68': 'Kerala', '69': 'Kerala',
+      '70': 'West Bengal', '71': 'West Bengal', '72': 'West Bengal', '73': 'West Bengal', '74': 'West Bengal',
+      '75': 'Odisha', '76': 'Odisha', '77': 'Odisha',
+      '78': 'Assam', '79': 'North Eastern States',
+      '80': 'Bihar', '81': 'Bihar', '82': 'Jharkhand', '83': 'Jharkhand', '84': 'Bihar', '85': 'Bihar'
+    };
+
+    const IFSC_BANK_PREFIXES = {
+      'SBIN': 'State Bank of India',
+      'HDFC': 'HDFC Bank Ltd.',
+      'ICIC': 'ICICI Bank Ltd.',
+      'PUNB': 'Punjab National Bank',
+      'BARB': 'Bank of Baroda',
+      'CNRB': 'Canara Bank',
+      'UBIN': 'Union Bank of India',
+      'UTIB': 'Axis Bank Ltd.',
+      'KKBK': 'Kotak Mahindra Bank',
+      'IDIB': 'Indian Bank',
+      'BKID': 'Bank of India',
+      'CBIN': 'Central Bank of India',
+      'YESB': 'Yes Bank Ltd.',
+      'INDB': 'IndusInd Bank Ltd.'
+    };
+
+    // Complete 193-Entry SAP Multi-Tax Master Dataset from Uploaded Excel
+    const MULTI_TAX_MASTER = [
+      {"type":"A1","code":"A1","key":"194A","rate":"0.00","desc":"194A-Interest Income-Invoice_10% (Exempt/Slab)"},
+      {"type":"A2","code":"A2","key":"194A","rate":"0.00","desc":"194A-Interest Income w/o PAN-Invoice_20%"},
+      {"type":"AA","code":"A1","key":"194A","rate":"0.00","desc":"194A-Interest Income - Payment_10%"},
+      {"type":"AB","code":"A2","key":"194A","rate":"0.00","desc":"194A-Interest Income w/o PAN-Payment_20%"},
+      {"type":"B1","code":"B1","key":"194C","rate":"2.00","desc":"194C-Contractors_Co-Invoice_2%"},
+      {"type":"B2","code":"B2","key":"194C","rate":"1.00","desc":"194C-Contractors_Ind&HUF-Invoice_1%"},
+      {"type":"B3","code":"B3","key":"194C","rate":"20.00","desc":"194C-Contractors_Ind&HUF-Inv w/o PAN_20%"},
+      {"type":"BA","code":"B1","key":"194C","rate":"2.00","desc":"194C-Contractors_Co-Payment_2%"},
+      {"type":"BB","code":"B2","key":"194C","rate":"1.00","desc":"194C-Contractors_Ind&HUF-Payment_1%"},
+      {"type":"BC","code":"B3","key":"194C","rate":"20.00","desc":"194C-Contractors_Ind&HUF-w/oPAN-Pymt_20%"},
+      {"type":"C1","code":"C1","key":"195","rate":"20.00","desc":"195-Interest to Non Resi - Inv_20%"},
+      {"type":"C4","code":"C4","key":"195","rate":"10.00","desc":"195-Royalty/Tech Services-Invoice_10%"},
+      {"type":"C7","code":"C7","key":"195","rate":"30.00","desc":"195-Other Income - Invoice_30%"},
+      {"type":"CA","code":"C1","key":"195","rate":"20.00","desc":"195-Interest to Non Residents-Pymt_20%"},
+      {"type":"CD","code":"C4","key":"195","rate":"10.00","desc":"195-Royalty/Tech Services-Payment_10%"},
+      {"type":"CG","code":"CG","key":"JICG","rate":"1.00","desc":"CGST WHT Code - Invoice 1%"},
+      {"type":"CM","code":"C7","key":"195","rate":"30.00","desc":"195-Other Income - Payment_30%"},
+      {"type":"D1","code":"D1","key":"192","rate":"10.00","desc":"192_Salary_Invoice_CO_10%"},
+      {"type":"D2","code":"D2","key":"192","rate":"10.00","desc":"192_Salary_Invoice_OT_10%"},
+      {"type":"DA","code":"DA","key":"192","rate":"10.00","desc":"192_Salary_payment_CO_10%"},
+      {"type":"DB","code":"DB","key":"192","rate":"10.00","desc":"192_Salary_payment_OT_10%"},
+      {"type":"E1","code":"E1","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 20%Surch"},
+      {"type":"E2","code":"E2","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 20%Surch"},
+      {"type":"E3","code":"E3","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 10%Surch"},
+      {"type":"E4","code":"E4","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 30%Surch"},
+      {"type":"E5","code":"E5","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 10%Surch"},
+      {"type":"E6","code":"E6","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 30%Surch"},
+      {"type":"EA","code":"EA","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 20%Surch"},
+      {"type":"EB","code":"EB","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 20%Surch"},
+      {"type":"EC","code":"EC","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 10%Surch"},
+      {"type":"ED","code":"ED","key":"195","rate":"0.00","desc":"195-Education Cess_4%_For 30%Surch"},
+      {"type":"EE","code":"EE","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 10%Surch"},
+      {"type":"EF","code":"EF","key":"195","rate":"4.00","desc":"195-Education Cess_4%_For 30%Surch"},
+      {"type":"EX","code":"EX","key":"195","rate":"4.00","desc":"DNT_195-ECESS"},
+      {"type":"EZ","code":"EZ","key":"195","rate":"0.08","desc":"195-EC_Exemption"},
+      {"type":"G1","code":"G1","key":"JICG","rate":"1.00","desc":"TDS CGST Invoice - 1%"},
+      {"type":"G2","code":"G2","key":"JISG","rate":"1.00","desc":"TDS SGST Invoice - 1%"},
+      {"type":"G4","code":"G4","key":"JIIG","rate":"2.00","desc":"TDS IGST Invoice - 2%"},
+      {"type":"GC","code":"GC","key":"JICG","rate":"1.00","desc":"CGST WHT Code - Payment 1%"},
+      {"type":"GI","code":"GI","key":"JIIG","rate":"2.00","desc":"IGST WHT Code - Payment 2%"},
+      {"type":"GS","code":"GS","key":"JISG","rate":"1.00","desc":"SGST WHT Code - Payment 1%"},
+      {"type":"H1","code":"H1","key":"194I","rate":"10.00","desc":"194I-Rent Except P&M-Invoice_10%"},
+      {"type":"H2","code":"H2","key":"194I","rate":"20.00","desc":"194I-Rent Except P&M-w/o PAN-Invoice_20%"},
+      {"type":"H3","code":"H3","key":"194I","rate":"2.00","desc":"194I-Rent P&M - Invoice_2%"},
+      {"type":"H4","code":"H4","key":"194I","rate":"20.00","desc":"194I-Rent P&M - w/o PAN - Invoice_20%"},
+      {"type":"H5","code":"H5","key":"194I","rate":"1.00","desc":"194IA-Transfer of Immovable Prop_Inv_1%"},
+      {"type":"HA","code":"H1","key":"194I","rate":"10.00","desc":"194I-Rent Except P&M-Payment_10%"},
+      {"type":"HB","code":"H2","key":"194I","rate":"20.00","desc":"194I-Rent Except P&M - w/o PAN-Pymt_20%"},
+      {"type":"HC","code":"H3","key":"194I","rate":"2.00","desc":"194I-Rent P&M - Payment_2%"},
+      {"type":"HD","code":"H4","key":"194I","rate":"20.00","desc":"194I-Rent P&M - w/o PAN - Payment_20%"},
+      {"type":"HE","code":"H5","key":"194I","rate":"1.00","desc":"194IA-Transfer of Immovable Prop_Pay_1%"},
+      {"type":"IG","code":"IG","key":"JIIG","rate":"2.00","desc":"IGST WHT Code - Invoice 2%"},
+      {"type":"J1","code":"J1","key":"194I","rate":"0.00","desc":"194I-Rent_accum. upto 6L - Invoice"},
+      {"type":"J2","code":"J2","key":"194I","rate":"0.00","desc":"194I-Rent_accum.upto 50000PM - Invoice"},
+      {"type":"L1","code":"L1","key":"LC1","rate":"1.00","desc":"NET - Labour Cess Welfare - Invoice"},
+      {"type":"LA","code":"LA","key":"LC1","rate":"1.00","desc":"Labour Cess Welfare - Payment"},
+      {"type":"LG","code":"LG","key":"LC1","rate":"1.00","desc":"GROSS - Labour Cess Welfare - Invoice"},
+      {"type":"Q1","code":"Q1","key":"194Q","rate":"0.10","desc":"Sec 194Q- Purchase of Goods @ 0.1% -Inv"},
+      {"type":"Q2","code":"Q2","key":"194Q","rate":"0.10","desc":"Sec 194Q- Purchase of Goods @5% -Inv"},
+      {"type":"Q3","code":"Q3","key":"194Q","rate":"0.10","desc":"Sec 194Q- Purchase of Goods @ 0.1% -Pay"},
+      {"type":"Q4","code":"Q4","key":"194Q","rate":"0.10","desc":"Sec 194Q- Purchase of Goods @ 5% -Pay"},
+      {"type":"R1","code":"R1","key":"194C","rate":"0.00","desc":"194C-25%Reduced-Co_Invoice_2%"},
+      {"type":"R2","code":"R2","key":"194C","rate":"0.00","desc":"194C-25%Reduced-Ind&HUF_Invoice_1%"},
+      {"type":"R3","code":"R3","key":"194A","rate":"0.00","desc":"194A-25%Reduced_Int Inc_Inv_10%"},
+      {"type":"R4","code":"R4","key":"194I","rate":"10.00","desc":"194I-25% Reduced_Rent Except P&M-Inv_10%"},
+      {"type":"R5","code":"R5","key":"194I","rate":"2.00","desc":"194I- 25% Reduced_Rent P&M - Invoice_2%"},
+      {"type":"R6","code":"R6","key":"194J","rate":"10.00","desc":"194J-25% Reduced_Prof Service - Inv_10%"},
+      {"type":"R7","code":"R7","key":"194J","rate":"2.00","desc":"194J-25% Reduced_Tech Service - Inv_2%"},
+      {"type":"R8","code":"R8","key":"194H","rate":"5.00","desc":"194H-25% Reduced_Comm&Brok-Invoice_5%"},
+      {"type":"R9","code":"R9","key":"194I","rate":"0.75","desc":"194I-25% Reduced_ImmovableProp-Inv-0.75%"},
+      {"type":"RA","code":"RA","key":"194C","rate":"0.00","desc":"194C-25%Reduced-Co_Payment_2%"},
+      {"type":"RB","code":"RB","key":"194C","rate":"0.00","desc":"194C-25%Reduced-Ind&HUF_Payment_1%"},
+      {"type":"RC","code":"RC","key":"194A","rate":"0.00","desc":"194A-25%Reduced_Int Inc_Pay_10%"},
+      {"type":"RD","code":"RD","key":"194I","rate":"10.00","desc":"194I-25%Reduced_Rent Except P&M-Pay_10%"},
+      {"type":"RE","code":"RE","key":"194I","rate":"2.00","desc":"194I-25% Reduced_Rent P&M - Pay_2%"},
+      {"type":"RF","code":"RF","key":"194J","rate":"10.00","desc":"194J-25% Reduced_Prof Service-Pay_10%"},
+      {"type":"RG","code":"RG","key":"194J","rate":"2.00","desc":"194J-25% Reduced_Tech Service-Pay_2%"},
+      {"type":"RH","code":"RH","key":"194H","rate":"5.00","desc":"194H-25% Reduced_Comm&Brok - Pay_5%"},
+      {"type":"RI","code":"RI","key":"194I","rate":"0.75","desc":"194I-25% Reduced_ImmovableProp_Pay_0.75%"},
+      {"type":"RR","code":"RR","key":"194R","rate":"10.00","desc":"TDS 194R Perks Benefits @10%"},
+      {"type":"S1","code":"S1","key":"195","rate":"0.00","desc":"195-Surcharge_Invoice_For 20%TDS"},
+      {"type":"S1","code":"SZ","key":"195","rate":"2.00","desc":"195-SC_20%TDS_Exmp"},
+      {"type":"S2","code":"S2","key":"195","rate":"10.00","desc":"195-Surcharge_Invoice_For 10%TDS"},
+      {"type":"S3","code":"S3","key":"195","rate":"0.00","desc":"195-Surcharge_Invoice_For 30%TDS"},
+      {"type":"SA","code":"SA","key":"195","rate":"0.00","desc":"195-Surcharge_Payment_For 20%TDS"},
+      {"type":"SB","code":"SB","key":"195","rate":"0.00","desc":"195-Surcharge_Payment_For 10%TDS"},
+      {"type":"SC","code":"SC","key":"195","rate":"0.00","desc":"195-Surcharge_Payment_For 30%TDS"},
+      {"type":"SG","code":"SG","key":"JISG","rate":"1.00","desc":"SGST WHT Code - Invoice 1%"},
+      {"type":"T0","code":"T0","key":"195","rate":"37.13","desc":"Sec195 - 35TDS + SC 2% + EC_PAY"},
+      {"type":"T1","code":"T1","key":"194J","rate":"20.00","desc":"194J-Prof/Tech Service w/o PAN-Inv_20%"},
+      {"type":"T2","code":"T2","key":"194J","rate":"10.00","desc":"194J-Professional Service - Invoice_10%"},
+      {"type":"T3","code":"T3","key":"194J","rate":"2.00","desc":"194J-Technical Service - Invoice_2%"},
+      {"type":"T4","code":"T4","key":"195","rate":"37.13","desc":"Sec195 - 35TDS + SC 2% + EC_INV"},
+      {"type":"T5","code":"T5","key":"195","rate":"36.43","desc":"Sec195 - 35%TDS+ EC_INV"},
+      {"type":"T6","code":"T6","key":"195","rate":"36.43","desc":"Sec195 - 35%TDS+ EC_PAY"},
+      {"type":"T7","code":"T7","key":"195","rate":"0.21","desc":"Sec195 - Additional 2% SC+EC_INV"},
+      {"type":"T8","code":"T8","key":"195","rate":"0.52","desc":"Sec195 - Additional 5% SC+EC_INV"},
+      {"type":"T9","code":"T9","key":"195","rate":"0.31","desc":"Sec195 - Additional 3% SC+EC_INV"},
+      {"type":"TA","code":"T1","key":"194J","rate":"20.00","desc":"194J-Prof/Tech Service w/o PAN-Pymt_20%"},
+      {"type":"TA","code":"TA","key":"394","rate":"2.00","desc":"Section 394(1) TCS on Sale of scrap-2%"},
+      {"type":"TB","code":"T2","key":"194J","rate":"10.00","desc":"194J-Professional Service - Payment_10%"},
+      {"type":"TB","code":"TB","key":"394","rate":"5.00","desc":"Section 394(1) TCS on Sale of scrap-5%"},
+      {"type":"TC","code":"T3","key":"194J","rate":"2.00","desc":"194J-Technical Service - Payment_2%"},
+      {"type":"TD","code":"TD","key":"195","rate":"10.40","desc":"Sec195 - 10% TDS + EC_PAY"},
+      {"type":"TE","code":"TE","key":"195","rate":"10.61","desc":"Sec195 - 10% TDS + SC 2% + EC_PAY"},
+      {"type":"TF","code":"TF","key":"195","rate":"10.92","desc":"Sec195 - 10% TDS + SC 5% + EC_PAY"},
+      {"type":"TG","code":"TG","key":"195","rate":"20.80","desc":"Sec195 - 20% TDS + EC_PAY"},
+      {"type":"TH","code":"TH","key":"195","rate":"21.22","desc":"Sec195 - 20% TDS + SC 2% + EC_PAY"},
+      {"type":"TI","code":"TI","key":"195","rate":"21.84","desc":"Sec195 - 20% TDS + SC 5% + EC_PAY"},
+      {"type":"TJ","code":"TJ","key":"195","rate":"31.20","desc":"Sec195 - 30% TDS + EC_PAY"},
+      {"type":"TK","code":"TK","key":"195","rate":"31.83","desc":"Sec195 - 30% TDS + SC 2% + EC_PAY"},
+      {"type":"TL","code":"TL","key":"195","rate":"32.76","desc":"Sec195 - 30% TDS + SC 5% + EC_PAY"},
+      {"type":"TM","code":"TM","key":"195","rate":"31.20","desc":"Sec195 - 30% TDS + EC_INV"},
+      {"type":"TN","code":"TN","key":"195","rate":"31.83","desc":"Sec195 - 30% TDS + SC 2% + EC_INV"},
+      {"type":"TO","code":"TO","key":"195","rate":"32.76","desc":"Sec195 - 30% TDS + SC 5% + EC_INV"},
+      {"type":"TP","code":"TP","key":"195","rate":"10.40","desc":"Sec195 - 10% TDS + EC_INV"},
+      {"type":"TQ","code":"TQ","key":"195","rate":"10.61","desc":"Sec195 - 10% TDS + SC 2% + EC_INV"},
+      {"type":"TR","code":"TR","key":"195","rate":"10.92","desc":"Sec195 - 10% TDS + SC 5% + EC_INV"},
+      {"type":"TS","code":"TS","key":"195","rate":"20.80","desc":"Sec195 - 20% TDS + EC_INV"},
+      {"type":"TT","code":"TT","key":"195","rate":"21.22","desc":"Sec195 - 20% TDS + SC 2% + EC_INV"},
+      {"type":"TU","code":"TU","key":"195","rate":"21.84","desc":"Sec195 - 20% TDS + SC 5% + EC_INV"},
+      {"type":"TV","code":"TV","key":"195","rate":"2.08","desc":"Sec195 - Additional 2% SC+EC_PAY"},
+      {"type":"TW","code":"TW","key":"195","rate":"5.20","desc":"Sec195 - Additional 5% SC+EC_PAY"},
+      {"type":"TX","code":"TX","key":"195","rate":"3.12","desc":"Sec195 - Additional 3% SC+EC_PAY"},
+      {"type":"TY","code":"TY","key":"195","rate":"38.18","desc":"Sec195 - 35%TDS+ SC 5% + EC_INV"},
+      {"type":"TZ","code":"TZ","key":"195","rate":"38.18","desc":"Sec195 - 35% TDS + SC 5% + EC_PAY"},
+      {"type":"W0","code":"W0","key":"WT8","rate":"5.00","desc":"W.C.T. Payable 5%-JAIPUR (RAJASTHAN)"},
+      {"type":"W1","code":"W1","key":"WT1","rate":"4.00","desc":"Works contract tax BCT - 4 %"},
+      {"type":"W2","code":"W2","key":"WT2","rate":"4.00","desc":"Works Contract Tax Bihar - 4 %"},
+      {"type":"W3","code":"W3","key":"WT3","rate":"2.00","desc":"Works Contract Tax - Gujarat/Mumbai - 2%"},
+      {"type":"W4","code":"W4","key":"WT4","rate":"2.00","desc":"Works Contract Tax - Uttar Pradesh - 2 %"},
+      {"type":"W5","code":"W5","key":"WT5","rate":"2.00","desc":"Works Contract Tax - West Bengal - 2 %"},
+      {"type":"W6","code":"W6","key":"WT3","rate":"0.60","desc":"Works Contract Tax - Gujarat - 0.6%"},
+      {"type":"W7","code":"W7","key":"WT3","rate":"2.00","desc":"Works Contract Tax - Delhi- 2%"},
+      {"type":"W8","code":"W8","key":"WT3","rate":"4.00","desc":"Works Contract Tax - Delhi- 4%"},
+      {"type":"W9","code":"W9","key":"WT7","rate":"4.00","desc":"Works Contract Tax - Haryana- 4%"},
+      {"type":"WA","code":"W1","key":"WT1","rate":"4.00","desc":"Works contract tax BCT - 4 % (Pymt)"},
+      {"type":"WB","code":"W2","key":"WT2","rate":"4.00","desc":"Works Contract Tax Bihar - 4 % (Pymt)"},
+      {"type":"WC","code":"W3","key":"WT3","rate":"2.00","desc":"Works Contract Tax - Gujarat/Mumbai - 2% (Pymt)"},
+      {"type":"WD","code":"W4","key":"WT4","rate":"2.00","desc":"Works Contract Tax - Uttar Pradesh - 2 % (Pymt)"},
+      {"type":"WE","code":"W5","key":"WT5","rate":"2.00","desc":"Works Contract Tax - West Bengal - 2 % (Pymt)"},
+      {"type":"WF","code":"WF","key":"WT3","rate":"0.60","desc":"Works Contract Tax - Gujarat - 0.6% (Pymt)"},
+      {"type":"WG","code":"W7","key":"WT3","rate":"2.00","desc":"Works Contract Tax - Delhi- 2% (Pymt)"},
+      {"type":"WH","code":"W8","key":"WT3","rate":"4.00","desc":"Works Contract Tax - Delhi- 4% (Pymt)"},
+      {"type":"WI","code":"W9","key":"WT7","rate":"4.00","desc":"Works Contract Tax - Haryana-4% (Pymt)"},
+      {"type":"WJ","code":"W0","key":"WT8","rate":"5.00","desc":"W.C.T. Payable 5%-JAIPUR (RAJASTHAN) (Pymt)"},
+      {"type":"WK","code":"WA","key":"WT9","rate":"6.00","desc":"Works Contract Tax - Haryana-6% (Invoice)"},
+      {"type":"WL","code":"WA","key":"WT9","rate":"6.00","desc":"Works Contract Tax - Haryana-6% (Paymnt)"},
+      {"type":"WM","code":"WM","key":"WT10","rate":"1.75","desc":"W.C.T. Payable 1.75% (TATA-ALDESA) Inv."},
+      {"type":"WN","code":"WM","key":"WT10","rate":"1.75","desc":"W.C.T. Payable 1.75% (TATA-ALDESA) Pymt."},
+      {"type":"WO","code":"WC","key":"WT6","rate":"6.00","desc":"Works Contract Tax - Delhi- 6%"},
+      {"type":"WP","code":"WP","key":"WT2","rate":"5.00","desc":"Works Contract Tax Bihar - 5 %"},
+      {"type":"WQ","code":"WQ","key":"WT2","rate":"8.00","desc":"Works Contract Tax Bihar - 8 %"},
+      {"type":"XC","code":"XC","key":"JICG","rate":"1.00","desc":"CGST-TDS Customer In-Payment 1%"},
+      {"type":"XI","code":"XI","key":"JIIG","rate":"2.00","desc":"IGST-TDS Customer In-Payment 2%"},
+      {"type":"XS","code":"XS","key":"JISG","rate":"1.00","desc":"SGST-TDS Customer In-Payment 1%"},
+      {"type":"Y1","code":"Y1","key":"194H","rate":"2.00","desc":"194H-Commission&Brokerage - Invoice_2%"},
+      {"type":"Y2","code":"Y2","key":"194H","rate":"20.00","desc":"194H-Commission&Brokerage w/oPAN Inv_20%"},
+      {"type":"Y3","code":"YC","key":"94IA","rate":"0.00","desc":"Sec 94IA Pur/Sale of imm property"},
+      {"type":"Y4","code":"Y4","key":"94LA","rate":"10.00","desc":"Sec 94LA Trf of imm property-Comp Acq"},
+      {"type":"YA","code":"Y1","key":"194H","rate":"2.00","desc":"194H-Commission&Brokerage - Payment_2%"},
+      {"type":"YB","code":"Y2","key":"194H","rate":"20.00","desc":"194H-Commission&Brok w/oPAN Pymt_20%"},
+      {"type":"YC","code":"YC","key":"94IA","rate":"0.00","desc":"Sec 94IA Pur/Sale of imm property (Pymt)"},
+      {"type":"YD","code":"YD","key":"94LA","rate":"10.00","desc":"Sec 94LA Trf of imm property-Comp Acq (Pymt)"},
+      {"type":"Z1","code":"Z1","key":"194C","rate":"2.00","desc":"194C-TANEXMP_2%_Invoice"},
+      {"type":"Z2","code":"Z2","key":"194C","rate":"2.00","desc":"194C-TANEXMP_2%_Invoice (Z2)"},
+      {"type":"Z3","code":"Z3","key":"194C","rate":"2.00","desc":"194C-TANEXMP_2%_Invoice (Z3)"},
+      {"type":"Z4","code":"Z4","key":"194C","rate":"2.00","desc":"194C-TANEXMP_2%_Invoice (Z4)"},
+      {"type":"Z5","code":"Z5","key":"194C","rate":"2.00","desc":"194C-TANEXMP_2%_Invoice (Z5)"},
+      {"type":"Z6","code":"Z6","key":"194J","rate":"10.00","desc":"194J-TANEXMP_10%_Invoice"},
+      {"type":"Z7","code":"Z7","key":"194J","rate":"10.00","desc":"194J-TANEXMP_10%_Invoice (Z7)"},
+      {"type":"ZE","code":"ZE","key":"195","rate":"31.20","desc":"Sec195 - 30% TDS + EC_INV_TAN EXEMP"},
+      {"type":"ZF","code":"ZF","key":"195","rate":"31.83","desc":"Sec195 - 30% TDS + SC 2% + EC_TAN EXEMP"},
+      {"type":"ZG","code":"ZG","key":"195","rate":"32.76","desc":"Sec195 - 30% TDS + SC 5% + EC_TAN EXEMP"},
+      {"type":"ZH","code":"ZH","key":"195","rate":"10.40","desc":"Sec195 - 10% TDS + EC_TAN EXEMP"},
+      {"type":"ZI","code":"ZI","key":"194I","rate":"10.00","desc":"194I Rent of Property (TDS Receivable)10"},
+      {"type":"ZJ","code":"ZJ","key":"194J","rate":"10.00","desc":"194J Prof. & Tech. (TDS Receivable10%Pay"},
+      {"type":"ZK","code":"ZK","key":"193","rate":"10.00","desc":"193Intt.on Securities(TDS Receivable)10%"},
+      {"type":"ZL","code":"ZL","key":"195","rate":"10.61","desc":"Sec195 - 10% TDS + SC 2% + EC_TAN EXEM"},
+      {"type":"ZM","code":"ZM","key":"194A","rate":"10.00","desc":"194A Intt oth than Security TDS Rec.)10%"},
+      {"type":"ZN","code":"ZN","key":"195","rate":"10.92","desc":"Sec195 - 10% TDS + SC 5% + EC_TAN EXEM"},
+      {"type":"ZO","code":"ZO","key":"195","rate":"20.80","desc":"Sec195 - 20% TDS + EC_TAN EXEM"},
+      {"type":"ZP","code":"ZP","key":"195","rate":"21.22","desc":"Sec195 - 20% TDS + SC 2% + EC_TAN EXEM"},
+      {"type":"ZQ","code":"ZQ","key":"195","rate":"21.84","desc":"Sec195 - 20% TDS + SC 5% + EC_TAN EXEMP"},
+      {"type":"ZR","code":"ZR","key":"194C","rate":"2.00","desc":"194C-Contractors_Co-Payment cust"},
+      {"type":"ZS","code":"ZS","key":"194J","rate":"10.00","desc":"194J-TANEXMP_10%_Invoice (ZS)"},
+      {"type":"ZT","code":"ZT","key":"194J","rate":"10.00","desc":"194J-TANEXMP_10%_Invoice (ZT)"},
+      {"type":"ZU","code":"ZU","key":"194J","rate":"10.00","desc":"194J-TANEXMP_10%_Invoice (ZU)"},
+      {"type":"ZV","code":"ZV","key":"194J","rate":"2.00","desc":"194J-TANEXMP_2%_Invoice (ZV)"},
+      {"type":"ZW","code":"ZW","key":"194J","rate":"2.00","desc":"194J-TANEXMP_2%_Invoice (ZW)"},
+      {"type":"ZX","code":"ZX","key":"194J","rate":"2.00","desc":"194J-TANEXMP_2%_Invoice (ZX)"},
+      {"type":"ZY","code":"ZY","key":"194J","rate":"2.00","desc":"194J-TANEXMP_2%_Invoice (ZY)"},
+      {"type":"ZZ","code":"ZZ","key":"194J","rate":"2.00","desc":"194J-TANEXMP_2%_Invoice (ZZ)"}
+    ];
+
+    const WIZARD_STEPS = [
+      { num: 1, label: 'Entity & Address' },
+      { num: 2, label: 'Tax & Compliance' },
+      { num: 3, label: 'Banking & WHT' },
+      { num: 4, label: 'Documents & Submit' }
+    ];
+
+    const DOCUMENT_DEFINITIONS = [
+      {
+        key: 'loaPoContract',
+        title: 'Letter of Award / PO / Contract',
+        hint: 'Signed LoA, Purchase Order, or Work Contract',
+        isRequiredFn: () => true,
+        recordLabel: 'LoA / PO / Contract'
+      },
+      {
+        key: 'bankDetailsProof',
+        title: 'Bank Details Proof',
+        hint: 'Cancelled Cheque leaf or Bank Mandate',
+        isRequiredFn: () => true,
+        recordLabel: 'Cancelled Cheque'
+      },
+      {
+        key: 'panCardCopy',
+        title: 'PAN Card Copy',
+        hint: 'Self-attested PAN card matching Legal Name',
+        isRequiredFn: () => !document.getElementById('panNotAvailable').checked,
+        recordLabel: 'PAN Copy'
+      },
+      {
+        key: 'gstCertificate',
+        title: 'GST Certificate (REG-06)',
+        hint: 'Required for Registered / Composition / SEZ',
+        isRequiredFn: () => {
+          const cat = document.getElementById('gstCategory').value;
+          const gst = document.getElementById('gstin').value.trim();
+          return ['1', '3', '6', '7', '8', '9'].includes(cat) || gst.length > 0;
+        },
+        recordLabel: 'GST Certificate'
+      },
+      {
+        key: 'incorporationCert',
+        title: 'Certificate of Incorporation',
+        hint: 'Required when Title is 0003 — Company',
+        isRequiredFn: () => document.getElementById('title').value === '0003',
+        recordLabel: 'Incorporation Cert'
+      },
+      {
+        key: 'msmeCertificate',
+        title: 'MSME / Udyam Certificate',
+        hint: 'Required when MSME Registered = Yes',
+        isRequiredFn: () => document.getElementById('msmeApplicable').value === 'Yes',
+        recordLabel: 'MSME Certificate'
+      }
+    ];
+
+    /* =========================================================================
+       2. APPLICATION STATE
+       ========================================================================= */
+    const state = {
+      activeStage: 'INITIATOR', // 'INITIATOR' | 'TECH_HEAD'
+      wizardStep: 1,            // 1..4
+      workflowStatus: 'DRAFT',  // 'DRAFT' | 'SUBMITTED' | 'RETURNED' | 'APPROVED' | 'REJECTED'
+      sapVendorCode: null,
+      submittedAt: null,
+      whtRows: [
+        { id: 1, taxIndex: 4, liable: true } // Default B1 / B1 - 194C Contractors Co 2%
+      ],
+      documents: {
+        loaPoContract: null,
+        bankDetailsProof: null,
+        panCardCopy: null,
+        gstCertificate: null,
+        incorporationCert: null,
+        msmeCertificate: null
+      }
+    };
+
+    /* =========================================================================
+       3. INITIALIZATION & NAVIGATION CHROME
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      renderWizardStepper();
+      renderWhtTable();
+      renderDocumentSection();
+      updateChrome();
+    });
+
+    function showToast(title, message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const tone = {
+        success: 'bg-slate-900 border-emerald-500/40 text-white',
+        error: 'bg-red-950 border-red-500/40 text-white',
+        warning: 'bg-slate-900 border-amber-400/50 text-white',
+        info: 'bg-slate-900 border-slate-700 text-white'
+      };
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto rounded-xl border px-4 py-3 shadow-lg transition-all duration-200 ${tone[type] || tone.info}`;
+      el.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-xs font-semibold">${title}</div>
+            <div class="text-xs text-slate-300 mt-0.5">${message}</div>
+          </div>
+          <button type="button" onclick="this.parentElement.parentElement.remove()" class="text-xs text-slate-400 hover:text-white">✕</button>
+        </div>
+      `;
+      container.appendChild(el);
+      setTimeout(() => { if (el.parentElement) el.remove(); }, 4200);
+    }
+
+    function updateChrome() {
+      // Role Switcher Segmented Control
+      const btnInit = document.getElementById('role-btn-initiator');
+      const btnTech = document.getElementById('role-btn-techhead');
+
+      if (state.activeStage === 'INITIATOR') {
+        btnInit.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition';
+        btnTech.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 transition';
+      } else {
+        btnInit.className = 'px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 transition';
+        btnTech.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-xs transition';
+      }
+
+      // Status Pill
+      const pill = document.getElementById('header-status-pill');
+      const map = {
+        DRAFT: { label: 'Draft', cls: 'bg-slate-100 text-slate-700' },
+        SUBMITTED: { label: 'Pending Approval', cls: 'bg-blue-50 text-blue-700' },
+        RETURNED: { label: 'Returned for Correction', cls: 'bg-amber-50 text-amber-800' },
+        APPROVED: { label: `Approved • SAP #${state.sapVendorCode}`, cls: 'bg-emerald-50 text-emerald-700' },
+        REJECTED: { label: 'Rejected', cls: 'bg-red-50 text-red-700' }
+      };
+      const item = map[state.workflowStatus] || map.DRAFT;
+      pill.textContent = item.label;
+      pill.className = `inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.cls}`;
+    }
+
+    function switchStage(stage) {
+      state.activeStage = stage;
+      const initView = document.getElementById('stage-initiator-view');
+      const techView = document.getElementById('stage-techhead-view');
+
+      if (stage === 'INITIATOR') {
+        initView.classList.remove('hidden');
+        techView.classList.add('hidden');
+      } else {
+        initView.classList.add('hidden');
+        techView.classList.remove('hidden');
+        renderTechHeadDossier();
+      }
+      updateChrome();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function renderWizardStepper() {
+      const nav = document.getElementById('wizard-stepper-nav');
+      nav.innerHTML = WIZARD_STEPS.map(s => {
+        const isCurrent = s.num === state.wizardStep;
+        const isCompleted = s.num < state.wizardStep;
+
+        let circleCls = 'w-6 h-6 rounded-full text-xs font-mono font-medium flex items-center justify-center transition ';
+        let textCls = 'text-xs sm:text-sm font-medium truncate ';
+
+        if (isCurrent) {
+          circleCls += 'bg-brand-900 text-white';
+          textCls += 'text-slate-900 font-semibold';
+        } else if (isCompleted) {
+          circleCls += 'bg-emerald-600 text-white';
+          textCls += 'text-slate-700';
+        } else {
+          circleCls += 'bg-slate-100 text-slate-500';
+          textCls += 'text-slate-400';
+        }
+
+        return `
+          <li>
+            <button type="button" onclick="goToWizardStep(${s.num}, false)"
+              class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 text-left transition">
+              <span class="${circleCls}">${isCompleted ? '✓' : s.num}</span>
+              <span class="${textCls}">${s.label}</span>
+            </button>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function goToWizardStep(targetStep, validateCurrent = false) {
+      if (validateCurrent) {
+        const stepErrors = validateSingleStep(state.wizardStep);
+        if (stepErrors.length > 0) {
+          showToast('Incomplete Step', stepErrors[0], 'error');
+          return;
+        }
+      }
+
+      state.wizardStep = targetStep;
+      for (let i = 1; i <= 4; i++) {
+        const panel = document.getElementById(`wizard-step-${i}`);
+        if (panel) panel.classList.toggle('hidden', i !== targetStep);
+      }
+      if (targetStep === 4) {
+        renderDocumentSection();
+      }
+      renderWizardStepper();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* =========================================================================
+       4. DYNAMIC FIELD RULES & AUTO-FILLS
+       ========================================================================= */
+    function setFieldError(fieldId, msg) {
+      const el = document.getElementById(fieldId);
+      const errEl = document.getElementById(`err-${fieldId}`);
+      if (el) el.classList.add('field-error');
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    function clearFieldError(fieldId) {
+      const el = document.getElementById(fieldId);
+      const errEl = document.getElementById(`err-${fieldId}`);
+      if (el) el.classList.remove('field-error');
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.classList.add('hidden');
+      }
+    }
+
+    function handleAccountGroupChange() {
+      const val = document.getElementById('accountGroup').value;
+      clearFieldError('accountGroup');
+      const glInput = document.getElementById('reconciliationAccount');
+      const glSub = document.getElementById('gl-desc-sub');
+
+      if (ACCOUNT_GROUP_MAP[val]) {
+        const info = ACCOUNT_GROUP_MAP[val];
+        glInput.value = info.gl;
+        glSub.textContent = info.glName;
+        clearFieldError('reconciliationAccount');
+      } else {
+        glInput.value = '';
+        glSub.textContent = '';
+      }
+    }
+
+    function handleTitleChange() {
+      const title = document.getElementById('title').value;
+      clearFieldError('title');
+      const cinStar = document.getElementById('cin-req-star');
+      const genderSel = document.getElementById('gender');
+
+      if (title === '0003') {
+        cinStar.classList.remove('hidden');
+        if (!genderSel.value) genderSel.value = 'Company';
+      } else {
+        cinStar.classList.add('hidden');
+        clearFieldError('cinLlpin');
+        if (title === '0001' && !genderSel.value) genderSel.value = 'Male';
+        if ((title === '0002' || title === '0004') && !genderSel.value) genderSel.value = 'Female';
+      }
+      renderDocumentSection();
+    }
+
+    function syncSearchTermsFromVendorName() {
+      const autoSync = document.getElementById('autoSyncSearch').checked;
+      const vName = document.getElementById('vendorName').value.toUpperCase().trim();
+      if (autoSync && vName) {
+        const clean = vName.replace(/[^A-Z0-9 ]/g, '');
+        document.getElementById('searchTerm1').value = clean.substring(0, 20);
+        clearFieldError('searchTerm1');
+        const words = clean.split(/\s+/);
+        if (!document.getElementById('searchTerm2').value) {
+          document.getElementById('searchTerm2').value = (words[0] || '').substring(0, 20);
+        }
+      }
+      checkBeneficiaryMismatch();
+    }
+
+    function handlePostalCodeInput() {
+      const country = document.getElementById('country').value;
+      let val = document.getElementById('postalCode').value.trim();
+      if (country === 'IN') {
+        val = val.replace(/[^0-9]/g, '').slice(0, 6);
+        document.getElementById('postalCode').value = val;
+      }
+      clearFieldError('postalCode');
+
+      if (country === 'IN' && val.length === 6) {
+        if (EXACT_PIN_LOOKUP[val]) {
+          document.getElementById('city').value = EXACT_PIN_LOOKUP[val].city;
+          document.getElementById('region').value = EXACT_PIN_LOOKUP[val].region;
+          clearFieldError('city');
+          clearFieldError('region');
+        } else {
+          const prefix = val.substring(0, 2);
+          if (PIN_PREFIX_STATE[prefix]) {
+            document.getElementById('region').value = PIN_PREFIX_STATE[prefix];
+            clearFieldError('region');
+          }
+        }
+      }
+    }
+
+    function handleCountryChange() {
+      const country = document.getElementById('country').value;
+      document.getElementById('phone-prefix').textContent = country === 'IN' ? '+91' : 'INTL';
+      clearFieldError('country');
+    }
+
+    function handlePanNotAvailableToggle() {
+      const noPan = document.getElementById('panNotAvailable').checked;
+      const panInput = document.getElementById('panNumber');
+      const panStar = document.getElementById('pan-req-star');
+      const panHint = document.getElementById('pan-hint');
+
+      if (noPan) {
+        panInput.value = '';
+        panInput.disabled = true;
+        panStar.classList.add('hidden');
+        clearFieldError('panNumber');
+        panHint.textContent = 'Higher TDS (20% u/s 206AA) applies without PAN.';
+      } else {
+        panInput.disabled = false;
+        panStar.classList.remove('hidden');
+        panHint.textContent = "10-character PAN (4th character 'C' for Company, 'P' for Individual).";
+      }
+      renderDocumentSection();
+    }
+
+    function handlePanInput() {
+      clearFieldError('panNumber');
+      const pan = document.getElementById('panNumber').value.trim();
+      const gst = document.getElementById('gstin').value.trim();
+      if (pan.length === 10 && gst.length === 15) {
+        if (gst.substring(2, 12) !== pan) {
+          setFieldError('gstin', 'GSTIN embedded PAN (chars 3–12) does not match PAN.');
+        } else {
+          clearFieldError('gstin');
+        }
+      }
+    }
+
+    function handleGstCategoryChange() {
+      const cat = document.getElementById('gstCategory').value;
+      clearFieldError('gstCategory');
+      const gstStar = document.getElementById('gst-req-star');
+      const mandatoryCats = ['1', '3', '6', '7', '8', '9'];
+
+      if (mandatoryCats.includes(cat)) {
+        gstStar.classList.remove('hidden');
+      } else {
+        gstStar.classList.add('hidden');
+        clearFieldError('gstin');
+      }
+      renderDocumentSection();
+    }
+
+    function handleGstinInput() {
+      clearFieldError('gstin');
+      renderDocumentSection();
+    }
+
+    function handleMsmeToggle() {
+      const isMsme = document.getElementById('msmeApplicable').value === 'Yes';
+      const udyamInput = document.getElementById('udyamNumber');
+      const msmeStatusSel = document.getElementById('msmeStatus');
+      const udyamStar = document.getElementById('udyam-req-star');
+      const statusStar = document.getElementById('msme-status-star');
+
+      if (isMsme) {
+        udyamInput.disabled = false;
+        msmeStatusSel.disabled = false;
+        udyamStar.classList.remove('hidden');
+        statusStar.classList.remove('hidden');
+        if (msmeStatusSel.options[0]) msmeStatusSel.options[0].text = 'Select MSME Category';
+        if (!document.getElementById('paymentTerms').value) {
+          document.getElementById('paymentTerms').value = 'Z045';
+        }
+      } else {
+        udyamInput.value = '';
+        udyamInput.disabled = true;
+        msmeStatusSel.value = '';
+        msmeStatusSel.disabled = true;
+        udyamStar.classList.add('hidden');
+        statusStar.classList.add('hidden');
+        if (msmeStatusSel.options[0]) msmeStatusSel.options[0].text = 'N/A';
+        clearFieldError('udyamNumber');
+        clearFieldError('msmeStatus');
+      }
+      renderDocumentSection();
+    }
+
+    function handleIfscInput() {
+      const ifsc = document.getElementById('bankKeyIfsc').value.trim();
+      clearFieldError('bankKeyIfsc');
+      const subEl = document.getElementById('ifsc-bank-sub');
+
+      if (/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) {
+        const prefix = ifsc.substring(0, 4);
+        const bankName = IFSC_BANK_PREFIXES[prefix] || `${prefix} Bank`;
+        subEl.textContent = `${bankName} • Branch ${ifsc.substring(5)}`;
+        subEl.classList.remove('hidden');
+      } else {
+        subEl.classList.add('hidden');
+      }
+    }
+
+    function checkAccountMatch() {
+      const a1 = document.getElementById('bankAccountNo').value.trim();
+      const a2 = document.getElementById('confirmBankAccountNo').value.trim();
+      const okEl = document.getElementById('acc-match-ok');
+      if (a1 && a2 && a1 === a2 && a1.length >= 9) {
+        okEl.classList.remove('hidden');
+        clearFieldError('confirmBankAccountNo');
+      } else {
+        okEl.classList.add('hidden');
+      }
+    }
+
+    function checkBeneficiaryMismatch() {
+      const vName = document.getElementById('vendorName').value.trim().toLowerCase();
+      const hName = document.getElementById('accountHolderName').value.trim().toLowerCase();
+      const warn = document.getElementById('beneficiary-warn');
+      if (vName.length > 3 && hName.length > 3 && !hName.includes(vName.slice(0, 6)) && !vName.includes(hName.slice(0, 6))) {
+        warn.classList.remove('hidden');
+      } else {
+        warn.classList.add('hidden');
+      }
+    }
+
+    /* =========================================================================
+       5. WITHHOLDING TAX MULTI-ROW TABLE
+       ========================================================================= */
+    function renderWhtTable() {
+      const tbody = document.getElementById('wht-table-body');
+      tbody.innerHTML = state.whtRows.map((row, idx) => {
+        const taxObj = MULTI_TAX_MASTER[row.taxIndex] || MULTI_TAX_MASTER[0];
+        const optionsHtml = MULTI_TAX_MASTER.map((t, i) => `
+          <option value="${i}" ${i === row.taxIndex ? 'selected' : ''}>
+            ${t.type}/${t.code} — ${t.desc} (${t.rate}%)
+          </option>
+        `).join('');
+
+        return `
+          <tr>
+            <td class="px-4 py-3 font-mono text-slate-400">${idx + 1}</td>
+            <td class="px-4 py-2.5">
+              <select onchange="updateWhtRow(${row.id}, 'taxIndex', parseInt(this.value, 10))"
+                class="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-brand-900">
+                ${optionsHtml}
+              </select>
+            </td>
+            <td class="px-4 py-3 font-mono text-slate-700">${taxObj.type}</td>
+            <td class="px-4 py-3 font-mono text-slate-700">${taxObj.code}</td>
+            <td class="px-4 py-3 font-mono text-slate-500">${taxObj.key}</td>
+            <td class="px-4 py-3 font-mono text-right text-slate-800">${taxObj.rate}%</td>
+            <td class="px-4 py-3 text-center">
+              <input type="checkbox" ${row.liable ? 'checked' : ''} onchange="updateWhtRow(${row.id}, 'liable', this.checked)"
+                class="rounded border-slate-300 text-brand-900 focus:ring-0" />
+            </td>
+            <td class="px-4 py-3 text-center">
+              <button type="button" onclick="removeWhtRow(${row.id})" title="Remove row"
+                class="text-slate-400 hover:text-red-600 transition text-xs">
+                ✕
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function addTaxRow() {
+      const nextId = state.whtRows.length ? Math.max(...state.whtRows.map(r => r.id)) + 1 : 1;
+      const defaultIdx = state.whtRows.length === 1 ? 35 : 90; // G1 CGST 1% or T2 194J 10%
+      state.whtRows.push({ id: nextId, taxIndex: defaultIdx, liable: true });
+      clearFieldError('withholdingTax');
+      renderWhtTable();
+    }
+
+    function updateWhtRow(id, field, value) {
+      const row = state.whtRows.find(r => r.id === id);
+      if (row) {
+        row[field] = value;
+        renderWhtTable();
+      }
+    }
+
+    function removeWhtRow(id) {
+      if (state.whtRows.length <= 1) {
+        showToast('Minimum 1 Tax Line', 'At least one withholding tax code is required.', 'warning');
+        return;
+      }
+      state.whtRows = state.whtRows.filter(r => r.id !== id);
+      renderWhtTable();
+    }
+
+    /* =========================================================================
+       6. DOCUMENT UPLOADS & AUTO-SYNCED RECORD INFORMATION
+       ========================================================================= */
+    function renderDocumentSection() {
+      const grid = document.getElementById('document-upload-grid');
+      const strip = document.getElementById('record-info-strip');
+
+      grid.innerHTML = DOCUMENT_DEFINITIONS.map(doc => {
+        const isReq = doc.isRequiredFn();
+        const uploaded = state.documents[doc.key];
+
+        return `
+          <div id="doc-card-${doc.key}" class="rounded-xl border ${uploaded ? 'border-emerald-200 bg-emerald-50/30' : 'border-slate-200 bg-white'} p-4 transition">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="text-xs font-semibold text-slate-900">
+                  ${doc.title} ${isReq ? '<span class="text-red-500">*</span>' : '<span class="text-slate-400 font-normal">(Optional)</span>'}
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">${doc.hint}</p>
+              </div>
+            </div>
+
+            ${uploaded ? `
+              <div class="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs">
+                <div class="min-w-0 truncate font-mono text-slate-700" title="${uploaded.name}">
+                  ✓ ${uploaded.name} <span class="text-slate-400">(${uploaded.sizeText})</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <button type="button" onclick="openDocPreviewModal('${doc.key}')" class="font-medium text-brand-900 hover:underline">View</button>
+                  <button type="button" onclick="removeUploadedDoc('${doc.key}')" class="text-slate-400 hover:text-red-600">Remove</button>
+                </div>
+              </div>
+            ` : `
+              <div class="mt-3">
+                <label class="flex items-center justify-center gap-2 w-full py-2.5 px-3 border border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-brand-900 hover:bg-slate-50/70 transition text-xs font-medium text-slate-600">
+                  <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  <span>Upload PDF / Image</span>
+                  <input type="file" accept=".pdf,.png,.jpg,.jpeg" class="hidden" onchange="handleFileUpload(event, '${doc.key}')" />
+                </label>
+                <p id="err-doc-${doc.key}" class="hidden mt-1.5 text-xs text-red-600"></p>
+              </div>
+            `}
+          </div>
+        `;
+      }).join('');
+
+      // Compact Record Information Status Strip
+      strip.innerHTML = `<span class="font-medium text-slate-500">Record Checklist:</span>` + DOCUMENT_DEFINITIONS.map(doc => {
+        const isReq = doc.isRequiredFn();
+        const uploaded = Boolean(state.documents[doc.key]);
+        const statusText = uploaded ? 'Yes' : (isReq ? 'Pending' : 'N/A');
+        const statusColor = uploaded ? 'text-emerald-700 font-semibold' : (isReq ? 'text-amber-700 font-medium' : 'text-slate-400');
+        return `<span class="text-slate-600">${doc.recordLabel}: <span class="${statusColor}">${statusText}</span></span>`;
+      }).join('');
+    }
+
+    function handleFileUpload(event, docKey) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+      if (!allowedTypes.includes(file.type)) {
+        showToast('Invalid Format', 'Please upload a PDF, JPG, or PNG file.', 'error');
+        event.target.value = '';
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        showToast('File Too Large', 'Maximum allowed size per document is 5 MB.', 'error');
+        event.target.value = '';
+        return;
+      }
+
+      state.documents[docKey] = {
+        name: file.name,
+        sizeText: `${(file.size / 1024).toFixed(0)} KB`,
+        mimeType: file.type,
+        url: URL.createObjectURL(file),
+        isSample: false
+      };
+
+      renderDocumentSection();
+      showToast('Attached', `${file.name} uploaded.`, 'success');
+    }
+
+    function removeUploadedDoc(docKey) {
+      state.documents[docKey] = null;
+      renderDocumentSection();
+    }
+
+    function openDocPreviewModal(docKey) {
+      const docDef = DOCUMENT_DEFINITIONS.find(d => d.key === docKey);
+      const fileObj = state.documents[docKey];
+      if (!fileObj) return;
+
+      document.getElementById('modal-doc-title').textContent = docDef ? docDef.title : 'Document Preview';
+      document.getElementById('modal-doc-meta').textContent = `${fileObj.name} (${fileObj.sizeText})`;
+
+      const body = document.getElementById('modal-doc-body');
+      if (fileObj.isSample) {
+        body.innerHTML = `
+          <div class="bg-white border border-slate-200 rounded-xl p-6 max-w-md w-full text-left space-y-3">
+            <div class="text-xs font-semibold uppercase tracking-wider text-slate-400">Verified Document Summary</div>
+            <p class="text-sm text-slate-700 leading-relaxed">${fileObj.sampleSummary}</p>
+            <div class="pt-3 border-t border-slate-100 text-xs font-mono text-slate-500 space-y-1">
+              <div>Entity: ${document.getElementById('vendorName').value || 'IRCON INFRASTRUCTURE AND SERVICES LIMITED'}</div>
+              <div>PAN / GSTIN: ${document.getElementById('panNumber').value || 'AABCI7294K'} / ${document.getElementById('gstin').value || '07AABCI7294K1Z4'}</div>
+              <div>Bank: ${document.getElementById('bankAccountNo').value || '309845120987'} (${document.getElementById('bankKeyIfsc').value || 'SBIN0000691'})</div>
+            </div>
+          </div>
+        `;
+      } else if (fileObj.mimeType === 'application/pdf') {
+        body.innerHTML = `<iframe src="${fileObj.url}" class="w-full h-[380px] rounded-lg border border-slate-200 bg-white"></iframe>`;
+      } else {
+        body.innerHTML = `<img src="${fileObj.url}" alt="${fileObj.name}" class="max-h-[380px] rounded-lg object-contain" />`;
+      }
+
+      document.getElementById('doc-preview-modal').classList.remove('hidden');
+    }
+
+    function closeDocPreviewModal() {
+      document.getElementById('doc-preview-modal').classList.add('hidden');
+    }
+
+    /* =========================================================================
+       7. VALIDATION ENGINE (PER-STEP & FULL SUBMISSION)
+       ========================================================================= */
+    function validateSingleStep(stepNum) {
+      const errors = [];
+      const fail = (id, msg, isDoc = false) => {
+        errors.push(msg);
+        if (isDoc) {
+          const card = document.getElementById(`doc-card-${id}`);
+          const errEl = document.getElementById(`err-doc-${id}`);
+          if (card) card.classList.add('border-red-400', 'bg-red-50/30');
+          if (errEl) {
+            errEl.textContent = msg;
+            errEl.classList.remove('hidden');
+          }
+        } else {
+          setFieldError(id, msg);
+        }
+      };
+
+      if (stepNum === 1) {
+        const accountGroup = document.getElementById('accountGroup').value;
+        if (!accountGroup || !ACCOUNT_GROUP_MAP[accountGroup]) fail('accountGroup', 'Select a valid Account Group.');
+
+        const purchaseOrg = document.getElementById('purchaseOrg').value;
+        if (!purchaseOrg || !PURCHASE_ORG_LABELS[purchaseOrg]) fail('purchaseOrg', 'Select a valid Purchase Organisation.');
+
+        const title = document.getElementById('title').value;
+        if (!title) fail('title', 'Select a Title.');
+
+        const cinLlpin = document.getElementById('cinLlpin').value.trim();
+        if (title === '0003') {
+          if (!cinLlpin) fail('cinLlpin', 'CIN / LLPIN is required for Company.');
+          else if (!(/^([LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}|[A-Z]{3}-[0-9]{4}|[A-Z0-9]{8})$/.test(cinLlpin))) {
+            fail('cinLlpin', 'Enter a valid 21-char CIN or 8-char LLPIN.');
+          }
+        } else if (cinLlpin && !(/^([LU][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}|[A-Z]{3}-[0-9]{4}|[A-Z0-9]{8})$/.test(cinLlpin))) {
+          fail('cinLlpin', 'Invalid CIN / LLPIN format.');
+        }
+
+        const vendorName = document.getElementById('vendorName').value.trim();
+        if (!vendorName || vendorName.length < 3) fail('vendorName', 'Vendor Legal Name is required.');
+
+        if (!document.getElementById('searchTerm1').value.trim()) fail('searchTerm1', 'Search Term 1 is required.');
+        if (!document.getElementById('searchTerm2').value.trim()) fail('searchTerm2', 'Search Term 2 is required.');
+        if (!document.getElementById('houseNo').value.trim()) fail('houseNo', 'House No. / Building is required.');
+        if (!document.getElementById('street').value.trim()) fail('street', 'Street / Locality is required.');
+
+        const country = document.getElementById('country').value;
+        const postalCode = document.getElementById('postalCode').value.trim();
+        if (!postalCode) fail('postalCode', 'Postal Code is required.');
+        else if (country === 'IN' && !/^[1-9][0-9]{5}$/.test(postalCode)) fail('postalCode', 'Enter a valid 6-digit Indian PIN code.');
+
+        if (!document.getElementById('city').value.trim()) fail('city', 'City is required.');
+        if (!document.getElementById('region').value.trim()) fail('region', 'Region (State) is required.');
+
+        const emailId = document.getElementById('emailId').value.trim();
+        if (!emailId || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailId)) fail('emailId', 'Enter a valid Email ID.');
+
+        const contactNumber = document.getElementById('contactNumber').value.trim();
+        if (!contactNumber || !/^[0-9]{10}$/.test(contactNumber)) fail('contactNumber', 'Enter a valid 10-digit Contact Number.');
+      }
+
+      if (stepNum === 2) {
+        const title = document.getElementById('title').value;
+        const panNotAvailable = document.getElementById('panNotAvailable').checked;
+        const panNumber = document.getElementById('panNumber').value.trim();
+
+        if (!panNotAvailable) {
+          if (!panNumber) fail('panNumber', 'PAN Number is required unless "PAN Not Available" is checked.');
+          else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panNumber)) fail('panNumber', 'Invalid PAN format (e.g. ABCDE1234F).');
+          else if (title === '0003' && panNumber[3] !== 'C') fail('panNumber', 'Company PAN must have "C" as its 4th character.');
+          else if (['0001', '0002', '0004'].includes(title) && panNumber[3] !== 'P') fail('panNumber', 'Individual PAN must have "P" as its 4th character.');
+        }
+
+        const gstCategory = document.getElementById('gstCategory').value;
+        if (!gstCategory || !GST_CAT_LABELS[gstCategory]) fail('gstCategory', 'Select a valid GST Vendor Category.');
+
+        const gstin = document.getElementById('gstin').value.trim();
+        if (['1', '3', '6', '7', '8', '9'].includes(gstCategory) && !gstin) {
+          fail('gstin', 'GSTIN is required for the selected GST Category.');
+        }
+        if (gstin) {
+          if (!/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstin)) {
+            fail('gstin', 'Invalid 15-character GSTIN format.');
+          } else if (!panNotAvailable && panNumber.length === 10 && gstin.substring(2, 12) !== panNumber) {
+            fail('gstin', 'GSTIN embedded PAN (chars 3–12) does not match PAN.');
+          }
+        }
+
+        if (!document.getElementById('industry').value) fail('industry', 'Select an Industry.');
+
+        const msmeApplicable = document.getElementById('msmeApplicable').value;
+        const udyamNumber = document.getElementById('udyamNumber').value.trim();
+        if (msmeApplicable === 'Yes') {
+          if (!udyamNumber) fail('udyamNumber', 'Udyam Registration No. is required for MSME.');
+          else if (!/^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/.test(udyamNumber)) fail('udyamNumber', 'Format: UDYAM-XX-00-0000000.');
+          if (!document.getElementById('msmeStatus').value) fail('msmeStatus', 'Select MSME Status.');
+        }
+
+        if (!document.getElementById('financialYear').value) fail('financialYear', 'Select Financial Year.');
+        if (!document.getElementById('socialCategory').value) fail('socialCategory', 'Select Social Category.');
+        if (!document.getElementById('gender').value) fail('gender', 'Select Gender.');
+      }
+
+      if (stepNum === 3) {
+        if (!document.getElementById('paymentTerms').value) fail('paymentTerms', 'Select Payment Terms.');
+        if (!document.getElementById('paymentMethod').value) fail('paymentMethod', 'Select Payment Method.');
+        if (!document.getElementById('reconciliationAccount').value) fail('reconciliationAccount', 'Reconciliation Account GL is missing.');
+
+        const ifsc = document.getElementById('bankKeyIfsc').value.trim();
+        if (!ifsc) fail('bankKeyIfsc', 'Bank Key (IFSC) is required.');
+        else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) fail('bankKeyIfsc', 'Invalid 11-character IFSC Code.');
+
+        const bankAcc = document.getElementById('bankAccountNo').value.trim();
+        const confirmBankAcc = document.getElementById('confirmBankAccountNo').value.trim();
+        if (!bankAcc || !/^[0-9]{9,18}$/.test(bankAcc)) fail('bankAccountNo', 'Bank Account Number must be 9–18 digits.');
+        if (!confirmBankAcc || bankAcc !== confirmBankAcc) fail('confirmBankAccountNo', 'Account numbers do not match.');
+
+        if (!document.getElementById('accountHolderName').value.trim()) fail('accountHolderName', 'Account Holder Name is required.');
+        if (!state.whtRows.length) fail('withholdingTax', 'At least one Withholding Tax line is required.');
+      }
+
+      if (stepNum === 4) {
+        DOCUMENT_DEFINITIONS.forEach(doc => {
+          if (doc.isRequiredFn() && !state.documents[doc.key]) {
+            fail(doc.key, `${doc.title} must be uploaded.`, true);
+          }
+        });
+
+        if (!document.getElementById('initiatorName').value.trim()) fail('initiatorName', 'Employee Name is required.');
+        if (!document.getElementById('initiatorEmpId').value.trim()) fail('initiatorEmpId', 'Employee ID is required.');
+        if (!document.getElementById('initiatorDept').value) fail('initiatorDept', 'Select Department.');
+        if (!document.getElementById('creationPurpose').value.trim()) fail('creationPurpose', 'Purpose / LoA Reference is required.');
+      }
+
+      return errors;
+    }
+
+    function validateAndSubmitToTechHead() {
+      // Clear existing errors
+      document.querySelectorAll('[id^="err-"]').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+      renderDocumentSection();
+
+      const allErrors = [];
+      let firstInvalidStep = null;
+
+      for (let s = 1; s <= 4; s++) {
+        const errs = validateSingleStep(s);
+        if (errs.length > 0) {
+          if (!firstInvalidStep) firstInvalidStep = s;
+          errs.forEach(e => allErrors.push(`Step ${s}: ${e}`));
+        }
+      }
+
+      const summaryBox = document.getElementById('validation-summary-box');
+      const errorList = document.getElementById('validation-error-list');
+
+      if (allErrors.length > 0) {
+        errorList.innerHTML = allErrors.map(e => `<li>${e}</li>`).join('');
+        summaryBox.classList.remove('hidden');
+        if (firstInvalidStep && firstInvalidStep !== state.wizardStep) {
+          goToWizardStep(firstInvalidStep, false);
+        }
+        summaryBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        showToast('Validation Failed', `${allErrors.length} item(s) require attention.`, 'error');
+        return;
+      }
+
+      summaryBox.classList.add('hidden');
+      state.workflowStatus = 'SUBMITTED';
+      state.submittedAt = new Date().toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+
+      switchStage('TECH_HEAD');
+      showToast('Submitted to Technical Head', 'Vendor request routed for Technical Head approval.', 'success');
+    }
+
+    /* =========================================================================
+       8. TECHNICAL HEAD REVIEW & APPROVAL ACTIONS
+       ========================================================================= */
+    function renderTechHeadDossier() {
+      const emptyState = document.getElementById('techhead-empty-state');
+      const dossier = document.getElementById('techhead-dossier-container');
+      const cert = document.getElementById('sap-approved-certificate');
+      const decisionCard = document.getElementById('techhead-decision-card');
+
+      if (state.workflowStatus === 'DRAFT') {
+        emptyState.classList.remove('hidden');
+        dossier.classList.add('hidden');
+        cert.classList.add('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      dossier.classList.remove('hidden');
+
+      if (state.workflowStatus === 'APPROVED') {
+        cert.classList.remove('hidden');
+        decisionCard.classList.add('hidden');
+        document.getElementById('cert-vendor-name').textContent = document.getElementById('vendorName').value;
+        document.getElementById('cert-gl-code').textContent = document.getElementById('reconciliationAccount').value;
+        document.getElementById('cert-sap-code').textContent = state.sapVendorCode;
+      } else {
+        cert.classList.add('hidden');
+        decisionCard.classList.toggle('hidden', state.workflowStatus === 'REJECTED');
+      }
+
+      const accGrp = document.getElementById('accountGroup').value;
+      const accInfo = ACCOUNT_GROUP_MAP[accGrp] || { label: accGrp, gl: '—' };
+      const pOrg = PURCHASE_ORG_LABELS[document.getElementById('purchaseOrg').value] || '—';
+
+      document.getElementById('review-submitted-meta').textContent =
+        `REQ VND-2026-0841 • Submitted ${state.submittedAt || 'just now'} by ${document.getElementById('initiatorName').value} (${document.getElementById('initiatorDept').value})`;
+      document.getElementById('review-vendor-title').textContent = document.getElementById('vendorName').value;
+      document.getElementById('review-vendor-subtitle').textContent = `${accInfo.label} • ${pOrg} • GL ${accInfo.gl}`;
+
+      const panVal = document.getElementById('panNotAvailable').checked
+        ? 'Not Available (20% TDS)'
+        : document.getElementById('panNumber').value;
+
+      const whtSummary = state.whtRows.map(r => {
+        const t = MULTI_TAX_MASTER[r.taxIndex];
+        return `${t.type}/${t.code} (${t.key} @ ${t.rate}%)`;
+      }).join(', ');
+
+      document.getElementById('review-kv-grid').innerHTML = `
+        <div class="space-y-4">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Entity &amp; Address</h3>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Title &amp; CIN/LLPIN</dt>
+              <dd class="font-medium text-slate-900 text-right font-mono">${TITLE_LABELS[document.getElementById('title').value] || ''} ${document.getElementById('cinLlpin').value ? '• ' + document.getElementById('cinLlpin').value : ''}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Address</dt>
+              <dd class="font-medium text-slate-900 text-right max-w-xs">${document.getElementById('houseNo').value}, ${document.getElementById('street').value}, ${document.getElementById('city').value}, ${document.getElementById('region').value} ${document.getElementById('postalCode').value}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Contact</dt>
+              <dd class="font-medium text-slate-900 text-right">${document.getElementById('emailId').value} • ${document.getElementById('contactNumber').value}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Purpose / LoA</dt>
+              <dd class="font-medium text-slate-900 text-right max-w-xs">${document.getElementById('creationPurpose').value}</dd>
+            </div>
+          </dl>
+        </div>
+
+        <div class="space-y-4">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Tax &amp; Banking</h3>
+          <dl class="space-y-3 text-sm">
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">PAN / GSTIN</dt>
+              <dd class="font-medium text-slate-900 text-right font-mono">${panVal}${document.getElementById('gstin').value ? ' • ' + document.getElementById('gstin').value : ''}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">MSME / Udyam</dt>
+              <dd class="font-medium text-slate-900 text-right font-mono">${document.getElementById('msmeApplicable').value === 'Yes' ? document.getElementById('udyamNumber').value : 'No'}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Bank Account</dt>
+              <dd class="font-medium text-slate-900 text-right font-mono">${document.getElementById('bankKeyIfsc').value} • ${document.getElementById('bankAccountNo').value}</dd>
+            </div>
+            <div class="flex justify-between gap-4">
+              <dt class="text-slate-500">Withholding Tax</dt>
+              <dd class="font-medium text-slate-900 text-right font-mono text-xs max-w-xs">${whtSummary}</dd>
+            </div>
+          </dl>
+        </div>
+      `;
+
+      // Attached Documents Chips
+      const chipsEl = document.getElementById('review-doc-chips');
+      const attached = DOCUMENT_DEFINITIONS.filter(d => state.documents[d.key]);
+      chipsEl.innerHTML = attached.map(doc => {
+        const f = state.documents[doc.key];
+        return `
+          <button type="button" onclick="openDocPreviewModal('${doc.key}')"
+            class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-white hover:border-brand-900 text-xs font-medium text-slate-800 transition">
+            <span class="text-emerald-600">✓</span>
+            <span>${doc.title}</span>
+            <span class="text-slate-400 font-mono">(${f.sizeText})</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function processTechHeadAction(decision) {
+      const remarks = document.getElementById('techHeadRemarks').value.trim();
+
+      if (decision === 'APPROVE') {
+        const c1 = document.getElementById('th-chk-loa').checked;
+        const c2 = document.getElementById('th-chk-bank').checked;
+        const c3 = document.getElementById('th-chk-sap').checked;
+
+        if (!c1 || !c2 || !c3) {
+          showToast('Checklist Incomplete', 'Please check all three Technical Head verification boxes before approving.', 'warning');
+          return;
+        }
+
+        state.workflowStatus = 'APPROVED';
+        state.sapVendorCode = '1000' + Math.floor(4100 + Math.random() * 5800);
+        renderTechHeadDossier();
+        updateChrome();
+        showToast('Approved', `SAP Vendor Code ${state.sapVendorCode} generated.`, 'success');
+      } else if (decision === 'RETURN') {
+        if (!remarks) {
+          showToast('Remarks Required', 'Enter correction instructions for the Initiator before returning.', 'warning');
+          document.getElementById('techHeadRemarks').focus();
+          return;
+        }
+        state.workflowStatus = 'RETURNED';
+        const banner = document.getElementById('initiator-feedback-banner');
+        banner.innerHTML = `<strong>Returned by Technical Head:</strong> ${remarks}`;
+        banner.classList.remove('hidden');
+        switchStage('INITIATOR');
+        showToast('Returned to Initiator', 'Request sent back for updates.', 'warning');
+      } else if (decision === 'REJECT') {
+        if (!remarks) {
+          showToast('Reason Required', 'Enter a rejection reason in Remarks.', 'warning');
+          document.getElementById('techHeadRemarks').focus();
+          return;
+        }
+        state.workflowStatus = 'REJECTED';
+        renderTechHeadDossier();
+        updateChrome();
+        showToast('Rejected', 'Vendor creation request has been rejected.', 'error');
+      }
+    }
+
+    /* =========================================================================
+       9. SAMPLE DATA LOADER & RESET
+       ========================================================================= */
+    function loadSampleValidData() {
+      document.getElementById('validation-summary-box').classList.add('hidden');
+      document.querySelectorAll('[id^="err-"]').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+
+      document.getElementById('accountGroup').value = 'Z002';
+      handleAccountGroupChange();
+      document.getElementById('purchaseOrg').value = '2000';
+
+      document.getElementById('title').value = '0003';
+      handleTitleChange();
+      document.getElementById('cinLlpin').value = 'U45200DL2006GOI155068';
+      document.getElementById('vendorName').value = 'IRCON INFRASTRUCTURE AND SERVICES LIMITED';
+      document.getElementById('autoSyncSearch').checked = true;
+      syncSearchTermsFromVendorName();
+      document.getElementById('searchTerm2').value = 'IRCONISL';
+
+      document.getElementById('houseNo').value = 'Plot No. C-4, District Centre';
+      document.getElementById('street').value = 'Saket';
+      document.getElementById('country').value = 'IN';
+      handleCountryChange();
+      document.getElementById('postalCode').value = '110001';
+      handlePostalCodeInput();
+      document.getElementById('emailId').value = 'finance.dfccil@irconisl.com';
+      document.getElementById('contactNumber').value = '9811456720';
+
+      document.getElementById('panNotAvailable').checked = false;
+      handlePanNotAvailableToggle();
+      document.getElementById('panNumber').value = 'AABCI7294K';
+      document.getElementById('gstCategory').value = '1';
+      handleGstCategoryChange();
+      document.getElementById('gstin').value = '07AABCI7294K1Z4';
+
+      document.getElementById('industry').value = '2';
+      document.getElementById('msmeApplicable').value = 'Yes';
+      handleMsmeToggle();
+      document.getElementById('udyamNumber').value = 'UDYAM-DL-01-0048291';
+      document.getElementById('msmeStatus').value = '2';
+
+      document.getElementById('financialYear').value = '2026-27';
+      document.getElementById('socialCategory').value = 'General';
+      document.getElementById('gender').value = 'Company';
+
+      document.getElementById('paymentTerms').value = 'Z045';
+      document.getElementById('paymentMethod').value = 'N';
+      document.getElementById('bankKeyIfsc').value = 'SBIN0000691';
+      handleIfscInput();
+      document.getElementById('bankAccountNo').value = '309845120987';
+      document.getElementById('confirmBankAccountNo').value = '309845120987';
+      checkAccountMatch();
+      document.getElementById('accountHolderName').value = 'IRCON INFRASTRUCTURE AND SERVICES LIMITED';
+
+      state.whtRows = [
+        { id: 1, taxIndex: 4, liable: true },  // B1 / B1 - 194C Co 2%
+        { id: 2, taxIndex: 35, liable: true }  // G1 / G1 - TDS CGST 1%
+      ];
+      renderWhtTable();
+
+      state.documents = {
+        loaPoContract: {
+          name: 'DFCCIL_LoA_WDFC_Pkg14.pdf',
+          sizeText: '842 KB',
+          mimeType: 'application/pdf',
+          isSample: true,
+          sampleSummary: 'Signed Letter of Award No. HQ/EN/WDFC/ROB-14/2026 awarded to IRCON INFRASTRUCTURE AND SERVICES LIMITED.'
+        },
+        bankDetailsProof: {
+          name: 'Cancelled_Cheque_SBIN0000691.png',
+          sizeText: '315 KB',
+          mimeType: 'image/png',
+          isSample: true,
+          sampleSummary: 'State Bank of India Cancelled Cheque leaf verifying A/c 309845120987 & IFSC SBIN0000691.'
+        },
+        panCardCopy: {
+          name: 'PAN_Card_AABCI7294K.pdf',
+          sizeText: '210 KB',
+          mimeType: 'application/pdf',
+          isSample: true,
+          sampleSummary: 'Income Tax PAN Card AABCI7294K.'
+        },
+        gstCertificate: {
+          name: 'GST_REG06_07AABCI7294K1Z4.pdf',
+          sizeText: '490 KB',
+          mimeType: 'application/pdf',
+          isSample: true,
+          sampleSummary: 'Form GST REG-06 Registration Certificate (Delhi).'
+        },
+        incorporationCert: {
+          name: 'Certificate_of_Incorporation.pdf',
+          sizeText: '612 KB',
+          mimeType: 'application/pdf',
+          isSample: true,
+          sampleSummary: 'Certificate of Incorporation (CIN: U45200DL2006GOI155068).'
+        },
+        msmeCertificate: {
+          name: 'Udyam_Registration_Certificate.pdf',
+          sizeText: '278 KB',
+          mimeType: 'application/pdf',
+          isSample: true,
+          sampleSummary: 'Udyam MSME Registration Certificate (UDYAM-DL-01-0048291).'
+        }
+      };
+      renderDocumentSection();
+
+      document.getElementById('initiatorName').value = 'Ankit Verma';
+      document.getElementById('initiatorEmpId').value = '100892';
+      document.getElementById('initiatorDept').value = 'Civil / Engineering';
+      document.getElementById('creationPurpose').value = 'Vendor onboarding against LoA No. HQ/EN/WDFC/ROB-14/2026.';
+
+      switchStage('INITIATOR');
+      goToWizardStep(1, false);
+      showToast('Sample Data Loaded', 'All 4 wizard steps and mandatory attachments are prefilled.', 'success');
+    }
+
+    function resetEntireForm() {
+      document.getElementById('vendor-wizard-form').reset();
+      document.getElementById('companyCode').value = 'DFCCIL- 1000';
+      document.getElementById('reconciliationAccount').value = '';
+      document.getElementById('gl-desc-sub').textContent = '';
+      document.getElementById('ifsc-bank-sub').classList.add('hidden');
+      document.getElementById('acc-match-ok').classList.add('hidden');
+      document.getElementById('beneficiary-warn').classList.add('hidden');
+      document.getElementById('validation-summary-box').classList.add('hidden');
+      document.getElementById('initiator-feedback-banner').classList.add('hidden');
+      document.querySelectorAll('[id^="err-"]').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+
+      state.workflowStatus = 'DRAFT';
+      state.sapVendorCode = null;
+      state.submittedAt = null;
+      state.whtRows = [{ id: 1, taxIndex: 4, liable: true }];
+      state.documents = {
+        loaPoContract: null,
+        bankDetailsProof: null,
+        panCardCopy: null,
+        gstCertificate: null,
+        incorporationCert: null,
+        msmeCertificate: null
+      };
+
+      handleTitleChange();
+      handlePanNotAvailableToggle();
+      handleGstCategoryChange();
+      handleMsmeToggle();
+      renderWhtTable();
+      renderDocumentSection();
+      switchStage('INITIATOR');
+      goToWizardStep(1, false);
+      showToast('Reset Complete', 'Form cleared to a fresh draft.', 'info');
+    }
+  </script>
+</body>
+</html>
